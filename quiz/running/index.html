@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#ffffff">
+    <title>Quiz</title>
+
+    <style>
+        * { box-sizing: border-box; }
+        html, body { width: 100%; height: 100%; margin: 0; padding: 0; overflow: hidden; background: #fff; }
+        body { position: fixed; inset: 0; font-family: Arial, sans-serif; }
+        #quizFrame, #statusPage { position: fixed; inset: 0; width: 100vw; height: 100vh; width: 100dvw; height: 100dvh; border: 0; margin: 0; padding: 0; background: #fff; }
+        #quizFrame { display: none; }
+        #statusPage { display: flex; align-items: center; justify-content: center; padding: 24px; text-align: center; }
+        .status-box { width: 100%; max-width: 420px; padding: 32px 24px; border: 1px solid #e5e7eb; border-radius: 18px; background: #fff; box-shadow: 0 10px 35px rgba(0, 0, 0, 0.06); }
+        .status-icon { display: flex; align-items: center; justify-content: center; width: 64px; height: 64px; margin: 0 auto 20px; border-radius: 50%; background: #f3f4f6; color: #4b5563; font-size: 28px; font-weight: bold; }
+        .status-icon.loading-spinner { width: 42px; height: 42px; border: 4px solid #e5e7eb; border-top-color: #2563eb; border-radius: 50%; background: transparent; animation: quizSpin 0.8s linear infinite; }
+        @keyframes quizSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .status-box h2 { margin: 0 0 12px; color: #111827; font-size: 23px; }
+        .status-box p { margin: 0; color: #6b7280; font-size: 15px; line-height: 1.6; overflow-wrap: anywhere; }
+        .status-box.upcoming .status-icon { background: #fef3c7; color: #b45309; }
+        .status-box.closed .status-icon { background: #fee2e2; color: #b91c1c; }
+        .status-box.error .status-icon { background: #f3f4f6; color: #4b5563; }
+        .status-box.locked .status-icon { background: #fee2e2; color: #b91c1c; }
+    </style>
+</head>
+
+<body>
+
+    <iframe
+        id="quizFrame"
+        title="Quiz"
+        allow="fullscreen; autoplay; microphone; camera; clipboard-write"
+        allowfullscreen>
+    </iframe>
+
+    <main id="statusPage">
+        <div class="status-box loading">
+            <div class="status-icon loading-spinner"></div>
+            <h2>Đang kiểm tra Quiz</h2>
+            <p>Vui lòng chờ trong giây lát.</p>
+        </div>
+    </main>
+
+    <script>
+        (function() {
+            "use strict";
+            const _0x1 = {
+                api: atob("aHR0cHM6Ly9hcGktcXVpei5hYmNkMTYwMWFiLndvcmtlcnMuZGV2L3F1aXo="),
+                reg: atob("aHR0cHM6Ly9hcGktcXVpei5hYmNkMTYwMWFiLndvcmtlcnMuZGV2L3JlZ2lzdGVy"),
+                quiz: atob("aHR0cHM6Ly93YXlncm91bmQuY29tL3Byby9qb2luP2djPQ=="),
+                timeout: 20000,
+                idKey: "kho_tai_lieu_device_id_v1",
+                tkKey: "kho_tai_lieu_device_token_v1"
+            };
+
+            const params = new URLSearchParams(window.location.search);
+            const state = {
+                code: (params.get("code") || "").trim(),
+                loading: false,
+                opened: false
+            };
+
+            const elements = {
+                frame: document.getElementById("quizFrame"),
+                statusPage: document.getElementById("statusPage")
+            };
+
+            function getCreds() {
+                try {
+                    return {
+                        deviceId: localStorage.getItem(_0x1.idKey) || "",
+                        deviceToken: localStorage.getItem(_0x1.tkKey) || ""
+                    };
+                } catch (e) {
+                    return { deviceId: "", deviceToken: "" };
+                }
+            }
+
+            function saveCreds(id, tk) {
+                try {
+                    localStorage.setItem(_0x1.idKey, id);
+                    localStorage.setItem(_0x1.tkKey, tk);
+                } catch (e) {
+                    throw new Error("Không thể lưu thông tin xác thực thiết bị.");
+                }
+            }
+
+            function genId() {
+                if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+                    return crypto.randomUUID();
+                }
+                return "device_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2);
+            }
+
+            async function regDev(sig) {
+                let c = getCreds();
+                if (c.deviceId && c.deviceToken) return c;
+                let id = c.deviceId;
+                if (!id) {
+                    id = genId();
+                    try {
+                        localStorage.setItem(_0x1.idKey, id);
+                    } catch (e) {
+                        throw new Error("Trình duyệt không cho phép lưu thông tin thiết bị.");
+                    }
+                }
+                const u = new URL(_0x1.reg);
+                u.searchParams.set("deviceId", id);
+                u.searchParams.set("_refresh", Date.now());
+
+                const res = await fetch(u.toString(), {
+                    method: "GET",
+                    headers: { "Accept": "application/json" },
+                    cache: "no-store",
+                    signal: sig
+                });
+                const r = await res.json().catch(() => {
+                    throw new Error("API không trả về JSON hợp lệ.");
+                });
+                const ec = r?.error || r?.code || r?.reason || "";
+                if (ec === "DEVICE_LOCKED" || ec === "DEVICE_UNREGISTERED") {
+                    const err = new Error(r?.message || (ec === "DEVICE_LOCKED" ? "Thiết bị đã bị khóa." : "Thiết bị chưa được đăng ký."));
+                    err.code = ec;
+                    throw err;
+                }
+                if (!res.ok || r?.success === false) {
+                    throw new Error(r?.message || "Đăng ký thiết bị thất bại.");
+                }
+                const did = String(r?.deviceId || id);
+                const dtk = String(r?.deviceToken || r?.token || "");
+                if (!dtk) throw new Error("Worker chưa trả về deviceToken.");
+                saveCreds(did, dtk);
+                return { deviceId: did, deviceToken: dtk };
+            }
+
+            function showStatus(type, title, msg, sym) {
+                elements.frame.style.display = "none";
+                elements.frame.removeAttribute("src");
+                state.opened = false;
+                elements.statusPage.style.display = "flex";
+                elements.statusPage.replaceChildren();
+
+                const b = document.createElement("div");
+                b.className = "status-box " + type;
+
+                const i = document.createElement("div");
+                i.className = "status-icon";
+                if (type === "loading") {
+                    i.classList.add("loading-spinner");
+                } else {
+                    i.textContent = sym || "!";
+                }
+
+                const h = document.createElement("h2");
+                h.textContent = title;
+
+                const p = document.createElement("p");
+                p.textContent = msg;
+
+                b.appendChild(i);
+                b.appendChild(h);
+                b.appendChild(p);
+                elements.statusPage.appendChild(b);
+            }
+
+            function parseTime(v) {
+                if (v === null || v === undefined || v === "") return null;
+                if (typeof v === "number" && Number.isFinite(v)) {
+                    return v < 1000000000000 ? v * 1000 : v;
+                }
+                const tx = String(v).trim();
+                if (/^\d{10,13}$/.test(tx)) {
+                    const n = Number(tx);
+                    return n < 1000000000000 ? n * 1000 : n;
+                }
+                const pr = Date.parse(tx);
+                return Number.isFinite(pr) ? pr : null;
+            }
+
+            function getStatus(quiz) {
+                const st = parseTime(quiz.startTime ?? quiz.start_time ?? quiz.start ?? "");
+                const et = parseTime(quiz.endTime ?? quiz.end_time ?? quiz.end ?? "");
+                const now = Date.now();
+                if (st === null || et === null || st >= et) {
+                    return { type: "error", title: "Không xác định được thời gian", message: "Thời gian bắt đầu hoặc kết thúc của Quiz không hợp lệ.", canPlay: false };
+                }
+                if (now < st) {
+                    return { type: "upcoming", title: "Quiz này chưa mở", message: "Vui lòng quay lại khi đến giờ bắt đầu.", canPlay: false };
+                }
+                if (now >= et) {
+                    return { type: "closed", title: "Quiz này đã đóng", message: "Phiên Quiz đã hết thời gian tham gia.", canPlay: false };
+                }
+                return { type: "open", title: "Quiz đang mở", message: "Đang chuyển đến trang Quiz.", canPlay: true };
+            }
+
+            function enterQuiz(qc) {
+                const cc = String(qc || "").trim();
+                if (!/^\d+$/.test(cc)) {
+                    showStatus("error", "Mã Quiz không hợp lệ", "Không thể mở phiên Quiz với mã này.", "!");
+                    return;
+                }
+                state.opened = true;
+                elements.statusPage.style.display = "none";
+                elements.frame.style.display = "block";
+                elements.frame.src = _0x1.quiz + encodeURIComponent(cc);
+            }
+
+            async function checkQuiz() {
+                if (state.loading) return;
+                if (!state.code || !/^\d+$/.test(state.code)) {
+                    showStatus("error", "Mã Quiz không hợp lệ", "Vui lòng kiểm tra lại đường dẫn tham gia Quiz.", "!");
+                    return;
+                }
+                state.loading = true;
+                showStatus("loading", "Đang kiểm tra Quiz", "Vui lòng chờ trong giây lát.", "");
+
+                let ctrl = null, to = null;
+                try {
+                    ctrl = new AbortController();
+                    to = setTimeout(() => ctrl.abort(), _0x1.timeout);
+
+                    const creds = await regDev(ctrl.signal);
+                    const u = new URL(_0x1.api);
+                    u.searchParams.set("code", state.code);
+                    u.searchParams.set("_refresh", Date.now());
+
+                    const res = await fetch(u.toString(), {
+                        method: "GET",
+                        headers: {
+                            "Accept": "application/json",
+                            "X-Device-Id": creds.deviceId,
+                            "X-Device-Token": creds.deviceToken
+                        },
+                        cache: "no-store",
+                        signal: ctrl.signal
+                    });
+
+                    const data = await res.json().catch(() => {
+                        throw new Error("API không trả về JSON hợp lệ.");
+                    });
+
+                    const ec = data?.error || data?.code || data?.reason || "";
+                    if (ec === "DEVICE_LOCKED" || ec === "DEVICE_UNREGISTERED") {
+                        const err = new Error(data?.message || (ec === "DEVICE_LOCKED" ? "Thiết bị đã bị khóa." : "Thiết bị chưa được đăng ký."));
+                        err.code = ec;
+                        throw err;
+                    }
+
+                    if (!res.ok) {
+                        throw new Error(data?.message || "API trả về lỗi.");
+                    }
+
+                    if (data?.success !== true || !data?.quiz) {
+                        showStatus("error", "Không tìm thấy mã Quiz", data?.message || "Mã phiên này không tồn tại.", "!");
+                        return;
+                    }
+
+                    const q = data.quiz;
+                    if (String(q.code ?? "").trim() !== state.code) {
+                        showStatus("error", "Mã Quiz không khớp", "Dữ liệu API không khớp với mã phiên trên đường dẫn.", "!");
+                        return;
+                    }
+
+                    const st = getStatus(q);
+                    if (!st.canPlay) {
+                        showStatus(st.type, st.title, st.message, st.type === "upcoming" ? "◷" : st.type === "closed" ? "×" : "!");
+                        return;
+                    }
+
+                    enterQuiz(q.code);
+                } catch (err) {
+                    if (err?.name === "AbortError") {
+                        showStatus("error", "API phản hồi quá lâu", "Đã quá thời gian chờ 20 giây. Vui lòng tải lại trang.", "!");
+                        return;
+                    }
+                    if (err?.code === "DEVICE_LOCKED") {
+                        showStatus("locked", "Thiết bị đã bị khóa", err.message, "!");
+                        return;
+                    }
+                    if (err?.code === "DEVICE_UNREGISTERED") {
+                        showStatus("error", "Thiết bị chưa được đăng ký", err.message, "!");
+                        return;
+                    }
+                    showStatus("error", "Không thể kiểm tra Quiz", err?.message || "Không tải được dữ liệu từ API. Vui lòng thử lại sau.", "!");
+                } finally {
+                    if (to) clearTimeout(to);
+                    state.loading = false;
+                }
+            }
+
+            if (document.readyState === "loading") {
+                document.addEventListener("DOMContentLoaded", checkQuiz, { once: true });
+            } else {
+                checkQuiz();
+            }
+        })();
+    </script>
+
+    <script src="protect.js"></script>
+
+</body>
+</html>
