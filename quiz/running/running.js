@@ -138,6 +138,10 @@
                 options.deviceId;
         }
 
+        /*
+         * Token chỉ được gửi khi gọi API Quiz,
+         * không gửi token trong yêu cầu /check.
+         */
         if (
             options.sendToken === true &&
             options.deviceToken
@@ -231,10 +235,10 @@
        BƯỚC 1: KIỂM TRA THIẾT BỊ
 
        - Chỉ gửi deviceId.
-       - Không gửi deviceToken.
+       - Worker tự lấy IP.
        - Không đăng ký thiết bị.
        - Không gia hạn thiết bị.
-       - Nếu thất bại, dừng và không gọi /quiz.
+       - Không hợp lệ thì dừng.
     ================================================= */
 
     async function checkDevice(
@@ -251,30 +255,34 @@
             }
         );
 
+        const deviceData =
+            result?.data &&
+            typeof result.data === "object"
+                ? result.data
+                : result;
+
         const status = String(
-            result?.status ||
-            result?.deviceStatus ||
-            result?.data?.status ||
+            deviceData?.status ||
+            deviceData?.deviceStatus ||
             ""
         ).toLowerCase();
 
         const errorCode = String(
             result?.error ||
             result?.code ||
-            result?.data?.error ||
-            result?.data?.code ||
+            deviceData?.error ||
+            deviceData?.code ||
             ""
         ).toUpperCase();
 
         if (
             errorCode === "DEVICE_LOCKED" ||
-            result?.locked === true ||
-            result?.data?.locked === true ||
+            deviceData?.locked === true ||
             status === "locked"
         ) {
             const error = new Error(
                 result?.message ||
-                result?.data?.message ||
+                deviceData?.message ||
                 "Thiết bị đã bị khóa."
             );
 
@@ -286,18 +294,15 @@
             errorCode === "DEVICE_UNREGISTERED" ||
             errorCode === "DEVICE_NOT_FOUND" ||
             errorCode === "NOT_REGISTERED" ||
-            result?.registered === false ||
-            result?.exists === false ||
-            result?.found === false ||
-            result?.data?.registered === false ||
-            result?.data?.exists === false ||
-            result?.data?.found === false ||
+            deviceData?.registered === false ||
+            deviceData?.exists === false ||
+            deviceData?.found === false ||
             status === "unregistered" ||
             status === "not_found"
         ) {
             const error = new Error(
                 result?.message ||
-                result?.data?.message ||
+                deviceData?.message ||
                 "Thiết bị chưa được đăng ký."
             );
 
@@ -308,14 +313,13 @@
         if (
             errorCode === "DEVICE_EXPIRED" ||
             errorCode === "DEVICE_RENEW_REQUIRED" ||
-            result?.expired === true ||
-            result?.data?.expired === true ||
+            deviceData?.expired === true ||
             status === "expired" ||
             status === "renew_required"
         ) {
             const error = new Error(
                 result?.message ||
-                result?.data?.message ||
+                deviceData?.message ||
                 "Thiết bị đã hết hạn hoặc cần gia hạn."
             );
 
@@ -324,13 +328,12 @@
         }
 
         /*
-         * Chỉ chấp nhận phản hồi xác nhận thành công.
-         * Không gọi /quiz nếu /check không xác nhận thành công.
+         * Chỉ tiếp tục khi /check xác nhận thành công.
          */
         if (result?.success !== true) {
             const error = new Error(
                 result?.message ||
-                "Không xác minh được thiết bị. Không thể tiếp tục."
+                "Không xác minh được thiết bị."
             );
 
             error.code = "DEVICE_CHECK_FAILED";
@@ -341,7 +344,7 @@
     }
 
     /* ================================================
-       BƯỚC 2: ĐỌC THỜI GIAN QUIZ
+       KIỂM TRA THỜI GIAN QUIZ
     ================================================= */
 
     function parseTime(value) {
@@ -439,12 +442,12 @@
     }
 
     /* ================================================
-       BƯỚC 3: MỞ QUIZ
+       MỞ QUIZ
     ================================================= */
 
     function enterQuiz(code) {
         const quizCode = String(
-            code || ""
+            code ?? ""
         ).trim();
 
         if (!/^\d+$/.test(quizCode)) {
@@ -469,13 +472,14 @@
     /* ================================================
        LUỒNG CHÍNH
 
-       1. Lấy deviceId.
+       1. Lấy deviceId đã lưu.
        2. Gọi /check.
        3. Chỉ khi /check thành công mới gọi /quiz.
-       4. Đọc data.data hoặc data.quiz.
-       5. Kiểm tra thời gian rồi mở Quiz.
+       4. Đọc đúng { success: true, data: {...} }.
+       5. Kiểm tra mã, trạng thái và thời gian.
+       6. Mở Quiz.
 
-       Không gọi /register hoặc /renew ở trang này.
+       Không gọi /register hoặc /renew.
     ================================================= */
 
     async function checkQuiz() {
@@ -521,6 +525,10 @@
 
             const creds = getCreds();
 
+            /*
+             * Không có ID thì dừng.
+             * Không tự sinh ID hoặc đăng ký.
+             */
             if (!creds.deviceId) {
                 const error = new Error(
                     "Không tìm thấy deviceId đã lưu. Vui lòng đăng ký thiết bị tại Kho tài liệu trước."
@@ -531,9 +539,9 @@
             }
 
             /*
-             * BẮT BUỘC: CHECK THIẾT BỊ TRƯỚC.
-             * Nếu dòng này lỗi, chương trình nhảy thẳng
-             * vào catch và không thực hiện lệnh gọi /quiz.
+             * BƯỚC 1: CHECK THIẾT BỊ.
+             * Nếu thất bại, catch sẽ xử lý và /quiz
+             * tuyệt đối không được gọi.
              */
             await checkDevice(
                 creds.deviceId,
@@ -548,11 +556,11 @@
             );
 
             /*
-             * Chỉ đến đây sau khi /check thành công.
-             * Token cũ chỉ được gửi ở bước /quiz nếu có.
-             * Không tạo token mới và không gia hạn token.
+             * BƯỚC 2: GỌI API QUIZ.
+             * Token cũ chỉ gửi nếu đang có sẵn.
+             * Không đăng ký, không gia hạn token.
              */
-            const data = await requestJSON(
+            const responseData = await requestJSON(
                 CONFIG.QUIZ_PATH,
                 {
                     code: state.code
@@ -565,12 +573,13 @@
                 }
             );
 
-            if (data?.success !== true) {
+            if (responseData?.success !== true) {
                 showStatus(
                     "error",
-                    "Không tìm thấy mã Quiz",
-                    data?.message ||
-                        "Mã phiên này không tồn tại.",
+                    "Không thể lấy thông tin Quiz",
+                    responseData?.message ||
+                    responseData?.error ||
+                    "Worker không xác nhận yêu cầu thành công.",
                     "!"
                 );
 
@@ -578,14 +587,24 @@
             }
 
             /*
-             * Hỗ trợ cả hai cấu trúc phản hồi:
-             * { success: true, data: {...} }
-             * { success: true, quiz: {...} }
+             * Worker trong ảnh trả:
+             * {
+             *   success: true,
+             *   data: {
+             *     id: 6,
+             *     name: "...",
+             *     code: 14310723,
+             *     startTime: "...",
+             *     endTime: "...",
+             *     active: true,
+             *     status: "open"
+             *   }
+             * }
              */
             const quiz =
-                data?.data?.quiz ||
-                data?.data ||
-                data?.quiz;
+                responseData?.data?.quiz ??
+                responseData?.data ??
+                responseData?.quiz;
 
             if (
                 !quiz ||
@@ -593,24 +612,46 @@
             ) {
                 showStatus(
                     "error",
-                    "Dữ liệu Quiz không hợp lệ",
-                    "Worker không trả về thông tin Quiz đúng định dạng.",
+                    "API trả về thiếu dữ liệu Quiz",
+                    "Phản hồi không chứa thông tin Quiz hợp lệ.",
                     "!"
                 );
 
                 return;
             }
 
-            const returnedCode = String(
+            const apiCode = String(
                 quiz.code ?? ""
             ).trim();
 
-            if (returnedCode !== state.code) {
+            const pageCode = String(
+                state.code ?? ""
+            ).trim();
+
+            if (apiCode !== pageCode) {
                 showStatus(
                     "error",
                     "Mã Quiz không khớp",
-                    "Dữ liệu API không khớp với mã phiên trên đường dẫn.",
+                    "Mã trên trang: " +
+                    pageCode +
+                    ". Mã từ API: " +
+                    (apiCode || "(trống)") +
+                    ".",
                     "!"
+                );
+
+                return;
+            }
+
+            if (
+                quiz.active === false ||
+                String(quiz.active).toLowerCase() === "false"
+            ) {
+                showStatus(
+                    "closed",
+                    "Quiz hiện không hoạt động",
+                    "Phiên Quiz này đã bị vô hiệu hóa.",
+                    "×"
                 );
 
                 return;
@@ -655,7 +696,7 @@
                     "locked",
                     "Thiết bị đã bị khóa",
                     error.message ||
-                        "Thiết bị này không được phép truy cập.",
+                    "Thiết bị này không được phép truy cập.",
                     "!"
                 );
 
@@ -669,7 +710,7 @@
                     "error",
                     "Thiết bị chưa được đăng ký",
                     error.message ||
-                        "Vui lòng đăng ký thiết bị tại Kho tài liệu trước khi tham gia Quiz.",
+                    "Vui lòng đăng ký thiết bị tại Kho tài liệu trước khi tham gia Quiz.",
                     "!"
                 );
 
@@ -683,7 +724,7 @@
                     "error",
                     "Thiết bị cần được gia hạn",
                     error.message ||
-                        "Trang Quiz không có quyền gia hạn thiết bị. Vui lòng thực hiện tại Kho tài liệu.",
+                    "Trang Quiz không có quyền gia hạn thiết bị. Vui lòng thực hiện tại Kho tài liệu.",
                     "!"
                 );
 
@@ -697,7 +738,7 @@
                     "error",
                     "Không xác minh được thiết bị",
                     error.message ||
-                        "Không thể xác nhận quyền truy cập. Quiz chưa được gọi.",
+                    "Không thể xác nhận quyền truy cập. Quiz chưa được gọi.",
                     "!"
                 );
 
@@ -708,7 +749,7 @@
                 "error",
                 "Không thể kiểm tra Quiz",
                 error?.message ||
-                    "Không tải được dữ liệu từ API. Vui lòng thử lại sau.",
+                "Không tải được dữ liệu từ API. Vui lòng thử lại sau.",
                 "!"
             );
 
