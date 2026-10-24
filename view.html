@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <meta
+        name="theme-color"
+        content="#ffffff"
+    >
+
+    <meta
+        name="description"
+        content="Trình xem tài liệu PDF"
+    >
+
+    <title>Đang xem tài liệu</title>
+
+
+    <!-- =====================================================
+         FONT
+    ====================================================== -->
+
+    <link
+        rel="preconnect"
+        href="https://fonts.googleapis.com"
+    >
+
+    <link
+        rel="preconnect"
+        href="https://fonts.gstatic.com"
+        crossorigin
+    >
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+        rel="stylesheet"
+    >
+
+
+    <!-- =====================================================
+         FONT AWESOME
+    ====================================================== -->
+
+    <link
+        rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+    >
+
+
+    <!-- =====================================================
+         VIEW CSS
+    ====================================================== -->
+
+    <link
+        rel="stylesheet"
+        href="view.css"
+    >
+
+</head>
+
+
+<body>
+
+
+    <!-- =====================================================
+         APP
+    ====================================================== -->
+
+    <div class="viewer-app">
+
+
+        <!-- =================================================
+             HEADER
+        ================================================== -->
+
+        <header class="viewer-header">
+
+
+            <!-- =============================================
+                 BÊN TRÁI
+            ============================================== -->
+
+            <div class="viewer-left">
+
+
+                <!-- QUAY LẠI -->
+
+                <button
+                    id="backButton"
+                    class="back-button"
+                    type="button"
+                    title="Quay lại"
+                    aria-label="Quay lại"
+                >
+
+                    <i class="fa-solid fa-arrow-left"></i>
+
+                </button>
+
+
+                <!-- DOCUMENT INFO -->
+
+                <div class="document-info">
+
+
+                    <div class="document-icon">
+
+                        <i class="fa-solid fa-file-pdf"></i>
+
+                    </div>
+
+
+                    <div class="document-title">
+
+                        <span id="fileName">
+                            Đang tải...
+                        </span>
+
+                        <span class="document-type">
+                            Tài liệu PDF
+                        </span>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- =============================================
+                 BÊN PHẢI
+            ============================================== -->
+
+            <div class="viewer-actions">
+
+
+                <!-- =========================================
+                     NHÓM TRANG
+                ========================================== -->
+
+                <div class="control-group page-controls">
+
+
+                    <!-- TRANG TRƯỚC -->
+
+                    <button
+                        id="pagePrev"
+                        class="viewer-button"
+                        type="button"
+                        title="Trang trước"
+                        aria-label="Trang trước"
+                    >
+
+                        <i class="fa-solid fa-chevron-left"></i>
+
+                    </button>
+
+
+                    <!-- PAGE INFO -->
+
+                    <div
+                        id="pageInfo"
+                        class="page-info"
+                    >
+                        1 / 1
+                    </div>
+
+
+                    <!-- TRANG SAU -->
+
+                    <button
+                        id="pageNext"
+                        class="viewer-button"
+                        type="button"
+                        title="Trang sau"
+                        aria-label="Trang sau"
+                    >
+
+                        <i class="fa-solid fa-chevron-right"></i>
+
+                    </button>
+
+                </div>
+
+
+                <!-- SEPARATOR -->
+
+                <span class="action-separator"></span>
+
+
+                <!-- =========================================
+                     ZOOM
+                ========================================== -->
+
+                <div class="control-group zoom-controls">
+
+
+                    <!-- THU NHỎ -->
+
+                    <button
+                        id="zoomOut"
+                        class="viewer-button"
+                        type="button"
+                        title="Thu nhỏ"
+                        aria-label="Thu nhỏ"
+                    >
+
+                        <i class="fa-solid fa-minus"></i>
+
+                    </button>
+
+
+                    <!-- ZOOM VALUE -->
+
+                    <span
+                        id="zoomValue"
+                        class="zoom-value"
+                    >
+                        100%
+                    </span>
+
+
+                    <!-- PHÓNG TO -->
+
+                    <button
+                        id="zoomIn"
+                        class="viewer-button"
+                        type="button"
+                        title="Phóng to"
+                        aria-label="Phóng to"
+                    >
+
+                        <i class="fa-solid fa-plus"></i>
+
+                    </button>
+
+                </div>
+
+
+                <!-- SEPARATOR -->
+
+                <span class="action-separator"></span>
+
+
+                <!-- =========================================
+                     RELOAD
+                ========================================== -->
+
+                <button
+                    id="reloadButton"
+                    class="viewer-button"
+                    type="button"
+                    title="Tải lại tài liệu"
+                    aria-label="Tải lại tài liệu"
+                >
+
+                    <i class="fa-solid fa-rotate-right"></i>
+
+                </button>
+
+
+                <!-- =========================================
+                     FULLSCREEN
+                ========================================== -->
+
+                <button
+                    id="fullscreenButton"
+                    class="viewer-button"
+                    type="button"
+                    title="Toàn màn hình"
+                    aria-label="Toàn màn hình"
+                >
+
+                    <i class="fa-solid fa-expand"></i>
+
+                </button>
+
+            </div>
+
+        </header>
+
+
+        <!-- =================================================
+             PDF VIEWER
+        ================================================== -->
+
+        <main class="viewer">
+
+
+            <!-- =============================================
+                 LOADING
+            ============================================== -->
+
+            <div
+                id="loading"
+                class="loading"
+            >
+
+                <div class="loading-box">
+
+
+                    <div class="loading-icon">
+
+                        <i class="fa-solid fa-file-pdf"></i>
+
+                    </div>
+
+
+                    <div class="spinner"></div>
+
+
+                    <h2>
+                        Đang tải tài liệu
+                    </h2>
+
+
+                    <p>
+                        Vui lòng chờ trong giây lát...
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <!-- =============================================
+                 ERROR
+            ============================================== -->
+
+            <div
+                id="error"
+                class="error hidden"
+            >
+
+
+                <div class="error-box">
+
+
+                    <div class="error-icon">
+
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+
+                    </div>
+
+
+                    <h2>
+                        Không thể mở tài liệu
+                    </h2>
+
+
+                    <p id="errorMessage">
+                        Đã xảy ra lỗi khi tải tài liệu.
+                    </p>
+
+
+                    <button
+                        id="retryButton"
+                        class="retry-button"
+                        type="button"
+                    >
+
+                        <i class="fa-solid fa-rotate-right"></i>
+
+                        <span>
+                            Thử lại
+                        </span>
+
+                    </button>
+
+                </div>
+
+            </div>
+
+
+            <!-- =============================================
+                 PDF CONTAINER
+            ============================================== -->
+
+            <div
+                id="pdfContainer"
+                class="pdf-container hidden"
+            >
+
+                <div class="pdf-page-wrapper">
+
+                    <canvas
+                        id="pdfCanvas"
+                    ></canvas>
+
+                </div>
+
+            </div>
+
+
+        </main>
+
+
+    </div>
+
+
+    <!-- =====================================================
+         PDF.JS
+    ====================================================== -->
+
+    <script
+        src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"
+    ></script>
+
+
+    <!-- =====================================================
+         VIEW.JS
+    ====================================================== -->
+
+    <script src="view.js"></script>
+    <script src="protect.j"></script>
+
+
+</body>
+
+</html>

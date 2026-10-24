@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Kho tài liệu</title>
+
+    <!-- LOGO TRÊN TAB TRÌNH DUYỆT -->
+    <link
+        rel="icon"
+        type="image/png"
+        href="logo.png"
+    >
+
+    <meta
+        name="description"
+        content="Kho tài liệu"
+    >
+
+    <link
+        rel="preconnect"
+        href="https://fonts.googleapis.com"
+    >
+
+    <link
+        rel="preconnect"
+        href="https://fonts.gstatic.com"
+        crossorigin
+    >
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+        rel="stylesheet"
+    >
+
+    <link
+        rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+    >
+
+    <link
+        rel="stylesheet"
+        href="style.css"
+    >
+</head>
+
+<body>
+
+    <div class="app">
+
+        <!-- HEADER -->
+        <header class="header">
+
+            <div class="header-inner">
+
+                <!-- LOGO -->
+                <a
+                    href="#"
+                    class="logo"
+                    id="homeButton"
+                >
+                    <span class="logo-icon">
+                        <i class="fa-solid fa-folder-open"></i>
+                    </span>
+
+                    <span class="logo-text">
+                        Kho tài liệu
+                    </span>
+                </a>
+
+                <!-- HEADER ACTIONS -->
+                <div class="header-actions">
+
+                    <!-- CHUYỂN SANG QUIZ -->
+                    <a
+                        href="quiz/index.html"
+                        class="switch-button"
+                        title="Quiz"
+                    >
+                        <i class="fa-solid fa-graduation-cap"></i>
+
+                        <span>
+                            Quiz
+                        </span>
+                    </a>
+
+                    <!-- LÀM MỚI -->
+                    <button
+                        class="icon-button"
+                        id="refreshButton"
+                        type="button"
+                        aria-label="Làm mới"
+                        title="Làm mới"
+                    >
+                        <i class="fa-solid fa-rotate"></i>
+                    </button>
+
+                </div>
+
+            </div>
+
+        </header>
+
+        <!-- MAIN -->
+        <main class="main">
+
+            <!-- TOP SECTION -->
+            <section class="top-section">
+
+                <div class="page-heading">
+
+                    <div>
+
+                        <!-- BREADCRUMB -->
+                        <div
+                            class="breadcrumb"
+                            id="breadcrumb"
+                        >
+                            <button
+                                type="button"
+                                class="breadcrumb-home"
+                                data-root="true"
+                            >
+                                <i class="fa-solid fa-house"></i>
+
+                                Trang chủ
+                            </button>
+                        </div>
+
+                        <h1 id="pageTitle">
+                            Kho tài liệu
+                        </h1>
+
+                        <p id="pageDescription">
+                            Các tài liệu được chia sẻ
+                        </p>
+
+                    </div>
+
+                </div>
+
+                <!-- SEARCH -->
+                <div class="search-box">
+
+                    <i class="fa-solid fa-magnifying-glass"></i>
+
+                    <input
+                        type="search"
+                        id="searchInput"
+                        placeholder="Tìm kiếm file hoặc thư mục..."
+                        autocomplete="off"
+                    >
+
+                    <button
+                        type="button"
+                        id="clearSearch"
+                        class="clear-search hidden"
+                        aria-label="Xóa tìm kiếm"
+                    >
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+
+                </div>
+
+            </section>
+
+            <!-- CONTENT -->
+            <section class="content-section">
+
+                <!-- TOOLBAR -->
+                <div
+                    class="content-toolbar"
+                    id="contentToolbar"
+                >
+
+                    <div class="toolbar-left">
+
+                        <!-- BACK -->
+                        <button
+                            type="button"
+                            class="back-button hidden"
+                            id="backButton"
+                        >
+                            <i class="fa-solid fa-arrow-left"></i>
+
+                            Quay lại
+                        </button>
+
+                        <!-- ITEM COUNT -->
+                        <span
+                            class="item-count"
+                            id="itemCount"
+                        >
+                            0 mục
+                        </span>
+
+                    </div>
+
+                    <div class="toolbar-right">
+
+                        <!-- GRID -->
+                        <button
+                            type="button"
+                            class="view-button active"
+                            id="gridViewButton"
+                            title="Dạng lưới"
+                            aria-label="Dạng lưới"
+                        >
+                            <i class="fa-solid fa-grip"></i>
+                        </button>
+
+                        <!-- LIST -->
+                        <button
+                            type="button"
+                            class="view-button"
+                            id="listViewButton"
+                            title="Dạng danh sách"
+                            aria-label="Dạng danh sách"
+                        >
+                            <i class="fa-solid fa-list"></i>
+                        </button>
+
+                    </div>
+
+                </div>
+
+                <!-- LOADING -->
+                <div
+                    class="loading-state"
+                    id="loadingState"
+                >
+                    <div class="loading-spinner"></div>
+
+                    <p>
+                        Đang tải dữ liệu...
+                    </p>
+                </div>
+
+                <!-- ERROR -->
+                <div
+                    class="error-state hidden"
+                    id="errorState"
+                >
+
+                    <div class="state-icon error-icon">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                    </div>
+
+                    <h2>
+                        Không thể tải dữ liệu
+                    </h2>
+
+                    <p id="errorMessage">
+                        Đã xảy ra lỗi khi kết nối API.
+                    </p>
+
+                    <button
+                        type="button"
+                        class="primary-button"
+                        id="retryButton"
+                    >
+                        <i class="fa-solid fa-rotate"></i>
+
+                        Thử lại
+                    </button>
+
+                </div>
+
+                <!-- EMPTY -->
+                <div
+                    class="empty-state hidden"
+                    id="emptyState"
+                >
+
+                    <div class="state-icon">
+                        <i class="fa-regular fa-folder-open"></i>
+                    </div>
+
+                    <h2>
+                        Không có dữ liệu
+                    </h2>
+
+                    <p id="emptyMessage">
+                        Chưa có file hoặc thư mục nào.
+                    </p>
+
+                </div>
+
+                <!-- ITEMS -->
+                <div
+                    class="items-grid"
+                    id="itemsContainer"
+                ></div>
+
+            </section>
+
+        </main>
+
+        <!-- FOOTER -->
+        <footer class="footer">
+
+            <div class="footer-inner">
+
+                <span>
+                    Kho tài liệu
+                </span>
+
+                <span class="footer-dot">
+                    •
+                </span>
+
+                <span>
+                    Name Gift
+                </span>
+
+            </div>
+
+        </footer>
+
+    </div>
+
+    <!-- TOAST -->
+    <div
+        class="toast"
+        id="toast"
+    >
+        <i class="fa-solid fa-circle-check"></i>
+
+        <span id="toastMessage">
+            Thành công
+        </span>
+    </div>
+
+    <!-- JAVASCRIPT -->
+    <script src="app.js"></script>
+    <script src="protect.js"></script>
+
+</body>
+
+</html>

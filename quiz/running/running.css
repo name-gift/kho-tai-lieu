@@ -1,0 +1,123 @@
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: #fff;
+        }
+
+        body {
+            position: fixed;
+            inset: 0;
+            font-family: Arial, sans-serif;
+        }
+
+        #quizFrame,
+        #statusPage {
+            position: fixed;
+            inset: 0;
+            width: 100vw;
+            height: 100vh;
+            width: 100dvw;
+            height: 100dvh;
+            border: 0;
+            margin: 0;
+            padding: 0;
+            background: #fff;
+        }
+
+        #quizFrame {
+            display: none;
+        }
+
+        #statusPage {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            text-align: center;
+        }
+
+        .status-box {
+            width: 100%;
+            max-width: 420px;
+            padding: 32px 24px;
+            border: 1px solid #e5e7eb;
+            border-radius: 18px;
+            background: #fff;
+            box-shadow: 0 10px 35px rgba(0, 0, 0, 0.06);
+        }
+
+        .status-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 64px;
+            height: 64px;
+            margin: 0 auto 20px;
+            border-radius: 50%;
+            background: #f3f4f6;
+            color: #4b5563;
+            font-size: 28px;
+            font-weight: bold;
+        }
+
+        .status-icon.loading-spinner {
+            width: 42px;
+            height: 42px;
+            border: 4px solid #e5e7eb;
+            border-top-color: #2563eb;
+            border-radius: 50%;
+            background: transparent;
+            animation: quizSpin 0.8s linear infinite;
+        }
+
+        @keyframes quizSpin {
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .status-box h2 {
+            margin: 0 0 12px;
+            color: #111827;
+            font-size: 23px;
+        }
+
+        .status-box p {
+            margin: 0;
+            color: #6b7280;
+            font-size: 15px;
+            line-height: 1.6;
+            overflow-wrap: anywhere;
+        }
+
+        .status-box.upcoming .status-icon {
+            background: #fef3c7;
+            color: #b45309;
+        }
+
+        .status-box.closed .status-icon {
+            background: #fee2e2;
+            color: #b91c1c;
+        }
+
+        .status-box.error .status-icon {
+            background: #f3f4f6;
+            color: #4b5563;
+        }
+
+        .status-box.locked .status-icon {
+            background: #fee2e2;
+            color: #b91c1c;
+        }
