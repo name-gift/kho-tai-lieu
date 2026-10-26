@@ -1,84 +1,145 @@
+
 "use strict";
 
 /* =====================================================
-   CẤU HÌNH ADMIN
+   ADMIN DASHBOARD — KHO TÀI LIỆU / KHO QUIZ
+   - Không tự động gọi API theo chu kỳ.
+   - Thời gian hiển thị cập nhật tại máy khách.
+   - Tương thích HTML Admin mới.
 ===================================================== */
 
+/* ==================== CẤU HÌNH ==================== */
+
 const DEFAULT_WORKER =
-    "https://api-admin.abcd1601ab.workers.dev";
+    "https://api-tai-lieu.abcd1601ab.workers.dev";
 
 const DEFAULT_GAS =
-    "https://api-admin.abcd1601ab.workers.dev";
+    "https://script.google.com/macros/s/AKfycbyq2uML6wFa2isEX5BLffLjXKxMKVeT0EpdAKk0v4oJJinsTpEVvEtLRzZ0R3ZPtLMY/exec";
+
+const STORAGE_KEYS = {
+    worker: "admin_worker_url",
+    gas: "admin_gas_url",
+    key: "admin_key",
+    deviceId: "kho_tai_lieu_device_id_v1"
+};
 
 let config = {
-    worker: localStorage.getItem("admin_worker_url") || DEFAULT_WORKER,
-    gas: localStorage.getItem("admin_gas_url") || DEFAULT_GAS,
-    key: localStorage.getItem("admin_key") || ""
+    worker: localStorage.getItem(STORAGE_KEYS.worker) || DEFAULT_WORKER,
+    gas: localStorage.getItem(STORAGE_KEYS.gas) || DEFAULT_GAS,
+    key: localStorage.getItem(STORAGE_KEYS.key) || ""
 };
 
 let files = [];
 let quizzes = [];
 let devices = [];
+
 let modalState = null;
+let loadingAll = false;
+let loadingDevices = false;
+let deviceLoadTime = null;
 
 const $ = id => document.getElementById(id);
 
-const esc = value =>
-    String(value ?? "").replace(/[&<>"']/g, char => ({
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        '"': "&quot;",
-        "'": "&#39;"
-    }[char]));
+const esc = value => String(value ?? "").replace(/[&<>"']/g, char => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+}[char]));
 
-/* =====================================================
-   THÔNG BÁO
-===================================================== */
+function val(object, ...keys) {
+    for (const key of keys) {
+        if (
+            object?.[key] !== undefined &&
+            object[key] !== null &&
+            object[key] !== ""
+        ) {
+            return object[key];
+        }
+    }
+
+    return "";
+}
+
+function deviceIdForError() {
+    return (
+        localStorage.getItem(STORAGE_KEYS.deviceId) ||
+        localStorage.getItem("deviceId") ||
+        "Không tìm thấy deviceId trong localStorage"
+    );
+}
+
+function errorWithDeviceId(message) {
+    return String(message || "Lỗi không xác định") +
+        "\n\nDevice ID: " + deviceIdForError();
+}
+
+/* ==================== THÔNG BÁO ==================== */
 
 function showNotice(message, type = "info") {
     const notice = $("notice");
     if (!notice) return;
 
-    notice.textContent = message;
+    const title = notice.querySelector(".notice-title");
+    const content = notice.querySelector(".notice-message");
+    const icon = notice.querySelector(".notice-icon i");
+
+    if (title) {
+        title.textContent = ({
+            success: "Thành công",
+            error: "Có lỗi xảy ra",
+            info: "Thông báo",
+            warning: "Cần chú ý"
+        })[type] || "Thông báo";
+    }
+
+    if (content) {
+        content.textContent = message;
+    } else {
+        notice.textContent = message;
+    }
+
+    if (icon) {
+        icon.className = ({
+            success: "fa-solid fa-circle-check",
+            error: "fa-solid fa-circle-exclamation",
+            warning: "fa-solid fa-triangle-exclamation",
+            info: "fa-solid fa-circle-info"
+        })[type] || "fa-solid fa-circle-info";
+    }
+
     notice.className = "notice show " + type;
 
-    window.clearTimeout(showNotice.timer);
+    clearTimeout(showNotice.timer);
 
     showNotice.timer = setTimeout(() => {
-        notice.className = "notice";
+        notice.classList.remove("show", "active");
     }, 6500);
 }
 
-/* =====================================================
-   ĐIỀU HƯỚNG
-===================================================== */
+/* ==================== ĐIỀU HƯỚNG ==================== */
 
 function toggleSidebar(open) {
-    $("sidebar")?.classList.toggle("open", open);
-    $("shade")?.classList.toggle("show", open);
+    $("sidebar")?.classList.toggle("open", Boolean(open));
+    $("shade")?.classList.toggle("show", Boolean(open));
 }
 
 function navigate(page) {
-    document.querySelectorAll(".section").forEach(section => {
-        section.classList.remove("active");
+    document.querySelectorAll(".page-section").forEach(section => {
+        section.classList.toggle("active", section.id === "page-" + page);
     });
 
-    $("page-" + page)?.classList.add("active");
-
-    document.querySelectorAll(".nav button").forEach(button => {
-        button.classList.toggle(
-            "active",
-            button.dataset.page === page
-        );
+    document.querySelectorAll(".sidebar-nav .nav-item").forEach(button => {
+        button.classList.toggle("active", button.dataset.page === page);
     });
 
     const titles = {
-        dashboard: "Tổng quan hệ thống",
-        files: "Quản lý kho tài liệu",
-        quizzes: "Quản lý kho Quiz",
+        dashboard: "Tổng quan",
+        files: "Quản lý tài liệu",
+        quizzes: "Quản lý Quiz",
         devices: "Quản lý thiết bị",
-        settings: "Cấu hình kết nối API"
+        settings: "Cài đặt API"
     };
 
     if ($("pageTitle")) {
@@ -87,62 +148,55 @@ function navigate(page) {
 
     toggleSidebar(false);
 
+    /*
+     * Không tự gọi API khi chuyển trang.
+     * Chỉ render dữ liệu đã tải trong bộ nhớ.
+     */
     if (page === "files") renderFiles();
     if (page === "quizzes") renderQuizzes();
-    if (page === "devices") loadDevices();
+    if (page === "devices") renderDevices();
+    if (page === "dashboard") {
+        renderStats();
+        renderRecent();
+    }
 }
 
-document.querySelectorAll(".nav button").forEach(button => {
-    button.addEventListener("click", () => {
-        navigate(button.dataset.page);
-    });
-});
+/* ==================== CÀI ĐẶT ==================== */
 
-/* =====================================================
-   CẤU HÌNH API
-===================================================== */
+function initSettings() {
+    if ($("workerUrl")) $("workerUrl").value = config.worker;
+    if ($("gasUrl")) $("gasUrl").value = config.gas;
+    if ($("adminKey")) $("adminKey").value = config.key;
+}
 
 function saveSettings() {
-    config.worker =
-        ($("workerUrl")?.value || DEFAULT_WORKER)
-            .trim()
-            .replace(/\/+$/, "");
+    const workerInput = $("workerUrl")?.value.trim();
+    const gasInput = $("gasUrl")?.value.trim();
+    const keyInput = $("adminKey")?.value.trim();
 
-    config.gas =
-        ($("gasUrl")?.value || DEFAULT_GAS).trim();
+    config.worker = (workerInput || DEFAULT_WORKER).replace(/\/+$/, "");
+    config.gas = gasInput || DEFAULT_GAS;
+    config.key = keyInput || "";
 
-    config.key =
-        ($("adminKey")?.value || "").trim();
+    try {
+        new URL(config.worker);
+        new URL(config.gas);
+    } catch {
+        showNotice("Worker URL hoặc Apps Script URL không hợp lệ.", "error");
+        return;
+    }
 
-    localStorage.setItem("admin_worker_url", config.worker);
-    localStorage.setItem("admin_gas_url", config.gas);
-    localStorage.setItem("admin_key", config.key);
+    localStorage.setItem(STORAGE_KEYS.worker, config.worker);
+    localStorage.setItem(STORAGE_KEYS.gas, config.gas);
+    localStorage.setItem(STORAGE_KEYS.key, config.key);
 
-    showNotice(
-        "Đã lưu cấu hình trên trình duyệt này.",
-        "success"
-    );
+    showNotice("Đã lưu cấu hình trên trình duyệt này.", "success");
 
+    // Chỉ gọi API khi người dùng chủ động lưu cấu hình.
     loadAll();
 }
 
-function initSettings() {
-    if ($("workerUrl")) {
-        $("workerUrl").value = config.worker;
-    }
-
-    if ($("gasUrl")) {
-        $("gasUrl").value = config.gas;
-    }
-
-    if ($("adminKey")) {
-        $("adminKey").value = config.key;
-    }
-}
-
-/* =====================================================
-   GỌI API
-===================================================== */
+/* ==================== GỌI API ==================== */
 
 async function request(url, timeout = 15000) {
     const controller = new AbortController();
@@ -157,7 +211,7 @@ async function request(url, timeout = 15000) {
             cache: "no-store",
             signal: controller.signal,
             headers: {
-                "Accept": "application/json"
+                Accept: "application/json"
             }
         });
 
@@ -168,8 +222,8 @@ async function request(url, timeout = 15000) {
             data = JSON.parse(text);
         } catch {
             throw new Error(
-                "API không trả JSON hợp lệ. " +
-                "Kiểm tra URL Apps Script, quyền triển khai và phản hồi API."
+                "API không trả JSON hợp lệ. Kiểm tra URL, quyền triển khai " +
+                "và phản hồi Apps Script."
             );
         }
 
@@ -187,10 +241,7 @@ async function request(url, timeout = 15000) {
             throw new Error("API phản hồi quá thời gian chờ.");
         }
 
-        if (
-            error instanceof TypeError &&
-            /fetch/i.test(error.message)
-        ) {
+        if (error instanceof TypeError) {
             throw new Error(
                 "Không thể kết nối API. Kiểm tra mạng, URL và quyền truy cập."
             );
@@ -204,11 +255,10 @@ async function request(url, timeout = 15000) {
 
 function dataArray(data) {
     if (Array.isArray(data)) return data;
-    if (Array.isArray(data?.data)) return data.data;
-    if (Array.isArray(data?.items)) return data.items;
-    if (Array.isArray(data?.files)) return data.files;
-    if (Array.isArray(data?.quizzes)) return data.quizzes;
-    if (Array.isArray(data?.devices)) return data.devices;
+
+    for (const key of ["data", "items", "files", "quizzes", "devices"]) {
+        if (Array.isArray(data?.[key])) return data[key];
+    }
 
     return [];
 }
@@ -219,15 +269,8 @@ async function fetchEndpoint(action) {
     }
 
     const url = new URL(config.gas);
-
     url.searchParams.set("action", action);
     url.searchParams.set("_", String(Date.now()));
-
-    /*
-       Apps Script doGet đọc e.parameter.adminKey.
-       Vì vậy phải truyền adminKey qua URL,
-       không chỉ gửi X-Admin-Key trong header.
-    */
 
     if (config.key) {
         url.searchParams.set("adminKey", config.key);
@@ -237,35 +280,32 @@ async function fetchEndpoint(action) {
 
     const result = await request(url.toString());
 
-    if (result && result.success === false) {
+    if (result?.success === false || result?.ok === false) {
         throw new Error(
             result.message ||
             result.error ||
-            "Apps Script từ chối yêu cầu quản trị."
-        );
-    }
-
-    if (result && result.ok === false) {
-        throw new Error(
-            result.message ||
-            result.error ||
-            "API trả về trạng thái thất bại."
+            "API từ chối yêu cầu quản trị."
         );
     }
 
     return result;
 }
 
-/* =====================================================
-   TẢI DỮ LIỆU QUẢN TRỊ
-===================================================== */
+function setConnectionText(message) {
+    if ($("connectionText")) {
+        $("connectionText").textContent = message;
+    }
+}
+
+/* ==================== TẢI DỮ LIỆU ==================== */
 
 async function loadAll() {
-    showNotice("Đang tải dữ liệu…", "info");
+    if (loadingAll) return;
 
-    if ($("connectionText")) {
-        $("connectionText").textContent = "Đang kết nối API…";
-    }
+    loadingAll = true;
+    setConnectionText("Đang kết nối API...");
+
+    showNotice("Đang tải dữ liệu quản trị...", "info");
 
     const results = await Promise.allSettled([
         fetchEndpoint("admin_files"),
@@ -273,90 +313,91 @@ async function loadAll() {
         fetchEndpoint("admin_devices")
     ]);
 
-    let successful = 0;
+    let successCount = 0;
     const errors = [];
 
     results.forEach((result, index) => {
         if (result.status === "fulfilled") {
-            successful++;
+            successCount++;
 
-            const data = dataArray(result.value);
+            const list = dataArray(result.value);
 
-            if (index === 0) files = data;
-            if (index === 1) quizzes = data;
-            if (index === 2) devices = data;
+            if (index === 0) files = list;
+            if (index === 1) quizzes = list;
+
+            if (index === 2) {
+                devices = list;
+                deviceLoadTime = Date.now();
+            }
         } else {
-            errors.push(
-                result.reason?.message || "Lỗi không xác định"
-            );
-
-            console.warn(
-                "Admin API thất bại:",
-                index,
-                result.reason
-            );
+            errors.push(result.reason?.message || "Lỗi không xác định");
+            console.error("Admin API lỗi:", result.reason);
         }
     });
 
-    if ($("connectionText")) {
-        $("connectionText").textContent =
-            successful > 0
-                ? "Đã nhận dữ liệu từ " + successful + "/3 API"
-                : "Chưa kết nối được Admin API";
-    }
+    loadingAll = false;
+
+    setConnectionText(
+        successCount > 0
+            ? "Đã nhận dữ liệu " + successCount + "/3 API"
+            : "Chưa kết nối được Admin API"
+    );
 
     renderAll();
 
-    if (successful === 3) {
+    if (successCount === 3) {
+        showNotice("Đã tải dữ liệu từ cả 3 API quản trị.", "success");
+    } else if (successCount > 0) {
         showNotice(
-            "Đã tải dữ liệu từ cả 3 API quản trị.",
-            "success"
-        );
-    } else if (successful > 0) {
-        showNotice(
-            "Đã tải một phần dữ liệu (" +
-            successful +
-            "/3). " +
-            (errors[0] || "Một số API chưa phản hồi."),
-            "info"
+            "Đã tải một phần dữ liệu (" + successCount + "/3).\n" +
+            errorWithDeviceId(errors[0] || "Một số API chưa phản hồi."),
+            "warning"
         );
     } else {
         showNotice(
-            "Không tải được dữ liệu quản trị. " +
-            (errors[0] || "Kiểm tra cấu hình API và ADMIN_KEY."),
+            "Không tải được dữ liệu quản trị.\n" +
+            errorWithDeviceId(errors[0] || "Kiểm tra cấu hình API."),
             "error"
         );
     }
 }
 
-function loadDevices() {
-    if (!config.gas) {
+/*
+ * Hàm này chỉ chạy khi người dùng chủ động tải lại thiết bị
+ * hoặc sau một thao tác quản trị thành công.
+ *
+ * Không có setInterval gọi API.
+ */
+async function loadDevices() {
+    if (loadingDevices) return;
+
+    loadingDevices = true;
+
+    try {
+        const result = await fetchEndpoint("admin_devices");
+
+        devices = dataArray(result);
+        deviceLoadTime = Date.now();
+
         renderDevices();
-        return;
+        renderStats();
+        renderRecent();
+
+        setConnectionText("Đã cập nhật thiết bị");
+    } catch (error) {
+        showNotice(
+            "Không tải được thiết bị.\n" + errorWithDeviceId(error.message),
+            "error"
+        );
+    } finally {
+        loadingDevices = false;
     }
-
-    fetchEndpoint("admin_devices")
-        .then(data => {
-            devices = dataArray(data);
-
-            renderDevices();
-            renderStats();
-            renderRecent();
-        })
-        .catch(error => {
-            renderDevices();
-
-            showNotice(
-                "Không tải được thiết bị: " + error.message,
-                "error"
-            );
-        });
 }
 
 function refreshCurrent() {
-    const active = document.querySelector(".section.active")?.id;
+    const activePage = document.querySelector(".page-section.active")?.id;
 
-    if (active === "page-devices") {
+    if (activePage === "page-devices") {
         loadDevices();
     } else {
         loadAll();
@@ -371,60 +412,60 @@ function renderAll() {
     renderRecent();
 }
 
-/* =====================================================
-   THỐNG KÊ
-===================================================== */
+/* ==================== THỐNG KÊ ==================== */
 
 function renderStats() {
-    if ($("statFiles")) {
-        $("statFiles").textContent = files.length;
-    }
-
-    if ($("statQuizzes")) {
-        $("statQuizzes").textContent = quizzes.length;
-    }
+    if ($("statFiles")) $("statFiles").textContent = files.length;
+    if ($("statQuizzes")) $("statQuizzes").textContent = quizzes.length;
 
     if ($("statActive")) {
         $("statActive").textContent = devices.filter(device =>
-            String(device.status || "").toLowerCase() === "active"
+            normalizeStatus(device.status) === "active"
         ).length;
     }
 
     if ($("statLocked")) {
         $("statLocked").textContent = devices.filter(device =>
-            String(device.status || "").toLowerCase() === "locked"
+            normalizeStatus(device.status) === "locked"
         ).length;
-    }
-
-    if ($("fileNavCount")) {
-        $("fileNavCount").textContent = files.length || "";
     }
 }
 
-function val(object, ...keys) {
-    for (const key of keys) {
-        if (
-            object?.[key] !== undefined &&
-            object[key] !== null &&
-            object[key] !== ""
-        ) {
-            return object[key];
-        }
+function normalizeStatus(status) {
+    const value = String(status || "").trim().toLowerCase();
+
+    if (["active", "enabled", "unlocked", "đang hoạt động"].includes(value)) {
+        return "active";
     }
 
-    return "";
+    if (["locked", "blocked", "đã khóa"].includes(value)) {
+        return "locked";
+    }
+
+    if (["expired", "hết hạn"].includes(value)) {
+        return "expired";
+    }
+
+    if (["inactive", "disabled", "đang tắt"].includes(value)) {
+        return "inactive";
+    }
+
+    return value || "unknown";
 }
 
 function statusBadge(status) {
-    status = String(status || "").toLowerCase();
+    const normalized = normalizeStatus(status);
 
-    const className = ["active", "open"].includes(status)
-        ? "active"
-        : ["locked", "closed", "inactive"].includes(status)
-            ? "locked"
-            : ["expired", "upcoming", "pending"].includes(status)
-                ? "pending"
-                : "neutral";
+    const className = ({
+        active: "active",
+        open: "active",
+        locked: "locked",
+        closed: "locked",
+        inactive: "locked",
+        expired: "pending",
+        upcoming: "pending",
+        pending: "pending"
+    })[normalized] || "neutral";
 
     const labels = {
         active: "Đang hoạt động",
@@ -433,147 +474,100 @@ function statusBadge(status) {
         open: "Đang mở",
         upcoming: "Chưa mở",
         closed: "Đã đóng",
-        inactive: "Đang tắt",
-        pending: "Chờ xử lý"
+        inactive: "Không hoạt động",
+        pending: "Đang chờ",
+        unknown: "Không rõ"
     };
 
-    return `
-        <span class="badge ${className}">
-            ${esc(labels[status] || status || "Không rõ")}
-        </span>
-    `;
+    return `<span class="badge ${className}">${
+        esc(labels[normalized] || status || "Không rõ")
+    }</span>`;
 }
 
-/* =====================================================
-   KHO TÀI LIỆU
-===================================================== */
+/* ==================== TÀI LIỆU ==================== */
 
 function renderFiles() {
     if (!$("filesBody")) return;
 
-    const query =
-        ($("fileSearch")?.value || "").toLowerCase();
+    const query = ($("fileSearch")?.value || "").trim().toLowerCase();
+    const status = $("fileStatus")?.value || "";
 
-    const status =
-        $("fileStatus")?.value || "";
+    const rows = files.filter(file => {
+        const matchesQuery = JSON.stringify(file).toLowerCase().includes(query);
 
-    const rows = files
-        .filter(file =>
-            JSON.stringify(file).toLowerCase().includes(query)
-        )
-        .filter(file => {
-            if (!status) return true;
+        const activeValue = String(
+            val(file, "isActive", "active", "status")
+        ).toLowerCase();
 
-            const activeValue = String(
-                val(file, "isActive", "active")
-            ).toLowerCase();
+        const inactive = [
+            "false", "0", "no", "inactive", "disabled", "locked"
+        ].includes(activeValue);
 
-            const isInactive = [
-                "false",
-                "0",
-                "no",
-                "inactive"
-            ].includes(activeValue);
+        const matchesStatus =
+            !status ||
+            (status === "active" && !inactive) ||
+            (status === "inactive" && inactive);
 
-            return status === "active"
-                ? !isInactive
-                : isInactive;
-        });
+        return matchesQuery && matchesStatus;
+    });
 
     $("filesBody").innerHTML = rows.length
         ? rows.map(file => {
-            const id = val(file, "id");
+            const id = val(file, "id", "fileId");
+            const name = val(file, "name", "title", "fileName") || "Chưa có tên";
+            const category = val(file, "folder", "category", "type") || "—";
 
             const activeValue = String(
-                val(file, "isActive", "active")
+                val(file, "isActive", "active", "status")
             ).toLowerCase();
 
             const inactive = [
-                "false",
-                "0",
-                "no",
-                "inactive"
+                "false", "0", "no", "inactive", "disabled", "locked"
             ].includes(activeValue);
 
             return `
                 <tr>
-                    <td>${esc(id)}</td>
-
                     <td>
-                        <div class="item-title">
-                            ${esc(
-                                val(file, "name", "title", "fileName") ||
-                                "Chưa có tên"
-                            )}
-                        </div>
-
-                        <div class="sub">
-                            ${esc(val(file, "description", "desc"))}
-                        </div>
+                        <strong>${esc(name)}</strong>
+                        <div class="sub">${esc(val(file, "description", "desc"))}</div>
                     </td>
-
-                    <td>
-                        ${esc(
-                            val(file, "folder", "category", "type") || "—"
-                        )}
-                    </td>
-
-                    <td>
-                        ${statusBadge(inactive ? "inactive" : "active")}
-                    </td>
-
+                    <td>${esc(id || "—")}</td>
+                    <td>${esc(category)}</td>
+                    <td>${statusBadge(inactive ? "inactive" : "active")}</td>
                     <td>
                         <div class="actions">
-                            <button class="mini"
+                            <button class="mini" type="button"
                                 title="Xem chi tiết"
-                                onclick="viewItem('file', '${esc(id)}')">
+                                onclick="viewItem('file', ${JSON.stringify(String(id))})">
                                 <i class="fa-regular fa-eye"></i>
                             </button>
-
-                            <button class="mini"
+                            <button class="mini" type="button"
                                 title="Sao chép ID"
-                                onclick="copyText('${esc(id)}')">
+                                onclick="copyText(${JSON.stringify(String(id))})">
                                 <i class="fa-regular fa-copy"></i>
                             </button>
                         </div>
                     </td>
-                </tr>
-            `;
+                </tr>`;
         }).join("")
-        : `
-            <tr>
-                <td colspan="5">
-                    <div class="empty">
-                        <i class="fa-regular fa-folder-open"></i>
-                        ${
-                            files.length
-                                ? "Không tìm thấy tài liệu phù hợp."
-                                : "Chưa có dữ liệu tài liệu. Hãy kiểm tra API quản trị."
-                        }
-                    </div>
-                </td>
-            </tr>
-        `;
+        : `<tr><td colspan="5" class="empty-cell">
+            <i class="fa-regular fa-folder-open"></i>
+            ${files.length ? "Không tìm thấy tài liệu phù hợp." : "Chưa có dữ liệu tài liệu."}
+        </td></tr>`;
 
     if ($("filesCount")) {
-        $("filesCount").textContent =
-            `${rows.length} / ${files.length} tài liệu`;
+        $("filesCount").textContent = `${rows.length} / ${files.length}`;
     }
 }
-/* =====================================================
-   KHO QUIZ
-===================================================== */
+
+/* ==================== QUIZ ==================== */
 
 function quizState(quiz) {
-    const status = String(
-        val(quiz, "status")
-    ).toLowerCase();
+    const rawStatus = String(val(quiz, "status", "state")).toLowerCase();
 
-    if (["open", "upcoming", "closed"].includes(status)) {
-        return status;
-    }
-
-    const now = Date.now();
+    if (["open", "active"].includes(rawStatus)) return "active";
+    if (["upcoming", "pending"].includes(rawStatus)) return "upcoming";
+    if (["closed", "inactive"].includes(rawStatus)) return "closed";
 
     const start = Date.parse(
         val(quiz, "startTime", "start", "startDate") || ""
@@ -583,311 +577,287 @@ function quizState(quiz) {
         val(quiz, "endTime", "end", "endDate") || ""
     ) || 0;
 
+    const now = Date.now();
+
     if (start && now < start) return "upcoming";
     if (end && now > end) return "closed";
 
-    return "open";
+    return "active";
 }
 
 function renderQuizzes() {
     if (!$("quizzesBody")) return;
 
-    const query =
-        ($("quizSearch")?.value || "").toLowerCase();
+    const query = ($("quizSearch")?.value || "").trim().toLowerCase();
+    const status = $("quizStatus")?.value || "";
 
-    const status =
-        $("quizStatus")?.value || "";
+    const rows = quizzes.filter(quiz => {
+        const matchesQuery = JSON.stringify(quiz).toLowerCase().includes(query);
+        const state = quizState(quiz);
 
-    const rows = quizzes
-        .filter(quiz =>
-            JSON.stringify(quiz).toLowerCase().includes(query)
-        )
-        .filter(quiz =>
-            !status || quizState(quiz) === status
-        );
+        const matchesStatus =
+            !status ||
+            (status === "active" && state === "active") ||
+            (status === "upcoming" && state === "upcoming") ||
+            (status === "closed" && state === "closed");
+
+        return matchesQuery && matchesStatus;
+    });
 
     $("quizzesBody").innerHTML = rows.length
         ? rows.map(quiz => {
-            const id = val(quiz, "id") || val(quiz, "code");
+            const id = val(quiz, "id", "code");
+            const code = val(quiz, "code", "quizCode", "gc") || "—";
+            const name = val(quiz, "name", "title") || "Chưa có tên";
+            const count = val(quiz, "questionCount", "questionsCount", "totalQuestions", "count");
+            const state = quizState(quiz);
 
             return `
                 <tr>
-                    <td>${esc(val(quiz, "id") || "—")}</td>
-
                     <td>
-                        <div class="item-title">
-                            ${esc(val(quiz, "name", "title") || "Chưa có tên")}
-                        </div>
-
-                        <div class="sub">
-                            ${esc(val(quiz, "desc", "description"))}
-                        </div>
+                        <strong>${esc(name)}</strong>
+                        <div class="sub">${esc(val(quiz, "desc", "description"))}</div>
                     </td>
-
-                    <td>
-                        <b>${esc(val(quiz, "code", "quizCode") || "—")}</b>
-                    </td>
-
-                    <td>
-                        ${statusBadge(quizState(quiz))}
-                    </td>
-
-                    <td>
-                        <div>
-                            ${esc(
-                                val(quiz, "startTime", "start", "startDate") ||
-                                "Mặc định"
-                            )}
-                        </div>
-
-                        <div class="sub">
-                            Đến:
-                            ${esc(
-                                val(quiz, "endTime", "end", "endDate") ||
-                                "Không giới hạn"
-                            )}
-                        </div>
-                    </td>
-
+                    <td><strong>${esc(code)}</strong></td>
+                    <td>${esc(count || "—")}</td>
+                    <td>${statusBadge(state)}</td>
                     <td>
                         <div class="actions">
-                            <button class="mini"
+                            <button class="mini" type="button"
                                 title="Xem chi tiết"
-                                onclick="viewItem('quiz', '${esc(id)}')">
+                                onclick="viewItem('quiz', ${JSON.stringify(String(id))})">
                                 <i class="fa-regular fa-eye"></i>
                             </button>
-
-                            <button class="mini"
+                            <button class="mini" type="button"
                                 title="Sao chép mã"
-                                onclick="copyText('${esc(val(quiz, "code"))}')">
+                                onclick="copyText(${JSON.stringify(String(code))})">
                                 <i class="fa-regular fa-copy"></i>
                             </button>
                         </div>
                     </td>
-                </tr>
-            `;
+                </tr>`;
         }).join("")
-        : `
-            <tr>
-                <td colspan="6">
-                    <div class="empty">
-                        <i class="fa-solid fa-graduation-cap"></i>
-                        ${
-                            quizzes.length
-                                ? "Không tìm thấy quiz phù hợp."
-                                : "Chưa có dữ liệu quiz. Hãy kiểm tra API quản trị."
-                        }
-                    </div>
-                </td>
-            </tr>
-        `;
+        : `<tr><td colspan="5" class="empty-cell">
+            <i class="fa-solid fa-graduation-cap"></i>
+            ${quizzes.length ? "Không tìm thấy Quiz phù hợp." : "Chưa có dữ liệu Quiz."}
+        </td></tr>`;
 
     if ($("quizzesCount")) {
-        $("quizzesCount").textContent =
-            `${rows.length} / ${quizzes.length} bài quiz`;
+        $("quizzesCount").textContent = `${rows.length} / ${quizzes.length}`;
     }
 }
 
-/* =====================================================
-   QUẢN LÝ THIẾT BỊ
-===================================================== */
+/* ==================== THIẾT BỊ ==================== */
+
+function formatDate(value) {
+    if (!value) return "—";
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+        return String(value);
+    }
+
+    return new Intl.DateTimeFormat("vi-VN", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit"
+    }).format(date);
+}
+
+function relativeTime(value) {
+    if (!value) return "Chưa có dữ liệu";
+
+    const date = new Date(value);
+    const timestamp = date.getTime();
+
+    if (Number.isNaN(timestamp)) return String(value);
+
+    const seconds = Math.max(0, Math.floor((Date.now() - timestamp) / 1000));
+
+    if (seconds < 5) return "Vừa xong";
+    if (seconds < 60) return seconds + " giây trước";
+
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return minutes + " phút trước";
+
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return hours + " giờ trước";
+
+    const days = Math.floor(hours / 24);
+    if (days < 30) return days + " ngày trước";
+
+    return formatDate(value);
+}
 
 function renderDevices() {
     if (!$("devicesBody")) return;
 
-    const query =
-        ($("deviceSearch")?.value || "").toLowerCase();
+    const query = ($("deviceSearch")?.value || "").trim().toLowerCase();
+    const status = ($("deviceStatus")?.value || "").toLowerCase();
 
-    const status =
-        ($("deviceStatus")?.value || "").toLowerCase();
+    const rows = devices.filter(device => {
+        const matchesQuery = JSON.stringify(device).toLowerCase().includes(query);
+        const state = normalizeStatus(val(device, "status", "state"));
 
-    const rows = devices
-        .filter(device =>
-            JSON.stringify(device).toLowerCase().includes(query)
-        )
-        .filter(device =>
+        const matchesStatus =
             !status ||
-            String(device.status || "").toLowerCase() === status
-        );
+            (status === "active" && state === "active") ||
+            (status === "locked" && state === "locked") ||
+            (status === "expired" && state === "expired");
+
+        return matchesQuery && matchesStatus;
+    });
 
     $("devicesBody").innerHTML = rows.length
         ? rows.map(device => {
-            const id = val(device, "deviceId", "id");
+            const id = val(device, "deviceId", "id") || "";
+            const ip = val(device, "ip", "lastIP", "ipAddress") || "—";
+            const state = normalizeStatus(val(device, "status", "state"));
+            const lastSeen = val(device, "lastSeen", "updatedAt", "lastActive");
 
-            const locked =
-                String(device.status || "").toLowerCase() === "locked";
+            const locked = state === "locked";
 
             return `
                 <tr>
                     <td>
-                        <div class="item-title">
-                            ${esc(id || "—")}
-                        </div>
-
-                        <div class="sub">
-                            ${esc(val(device, "createdAt") || "")}
-                        </div>
+                        <strong>${esc(id || "—")}</strong>
+                        <div class="sub">Tạo: ${esc(formatDate(val(device, "createdAt", "created_at")))}</div>
                     </td>
-
-                    <td>${esc(val(device, "ip") || "—")}</td>
-
-                    <td>${statusBadge(val(device, "status"))}</td>
-
-                    <td>${esc(val(device, "lastEvent") || "—")}</td>
-
-                    <td>${esc(val(device, "lastSeen") || "—")}</td>
-
+                    <td>${esc(ip)}</td>
+                    <td>${statusBadge(state)}</td>
                     <td>
-                        <button class="btn"
-                            onclick="viewIPs('${esc(id)}')">
-                            Xem IP
-                        </button>
+                        <span data-live-time="${esc(lastSeen)}"
+                              title="${esc(formatDate(lastSeen))}">
+                            ${esc(relativeTime(lastSeen))}
+                        </span>
                     </td>
-
                     <td>
                         <div class="actions">
-                            <button class="mini"
-                                title="Xem"
-                                onclick="viewItem('device', '${esc(id)}')">
+                            <button class="mini" type="button"
+                                title="Xem chi tiết"
+                                onclick="viewItem('device', ${JSON.stringify(String(id))})">
                                 <i class="fa-regular fa-eye"></i>
                             </button>
-
-                            ${
-                                locked
-                                    ? `
-                                        <button class="mini"
-                                            title="Mở khóa thiết bị"
-                                            onclick="confirmUnlock('${esc(id)}')">
-                                            <i class="fa-solid fa-lock-open"></i>
-                                        </button>
-                                    `
-                                    : `
-                                        <button class="mini"
-                                            title="Khóa thiết bị"
-                                            onclick="confirmLock('${esc(id)}')">
-                                            <i class="fa-solid fa-lock"></i>
-                                        </button>
-                                    `
-                            }
-
-                            <button class="mini"
-                                title="Xóa thiết bị"
-                                onclick="confirmDeleteDevice('${esc(id)}')">
-                                <i class="fa-regular fa-trash-can"></i>
+                            <button class="mini" type="button"
+                                title="Sao chép Device ID"
+                                onclick="copyText(${JSON.stringify(String(id))})">
+                                <i class="fa-regular fa-copy"></i>
+                            </button>
+                            <button class="mini" type="button"
+                                title="${locked ? "Mở khóa" : "Khóa"} thiết bị"
+                                onclick="${locked ? "confirmUnlock" : "confirmLock"}(${JSON.stringify(String(id))})">
+                                <i class="fa-solid ${locked ? "fa-lock-open" : "fa-lock"}"></i>
                             </button>
                         </div>
                     </td>
-                </tr>
-            `;
+                </tr>`;
         }).join("")
-        : `
-            <tr>
-                <td colspan="7">
-                    <div class="empty">
-                        <i class="fa-solid fa-laptop"></i>
-                        ${
-                            devices.length
-                                ? "Không tìm thấy thiết bị phù hợp."
-                                : "Chưa có dữ liệu thiết bị. Kiểm tra API quản trị."
-                        }
-                    </div>
-                </td>
-            </tr>
-        `;
+        : `<tr><td colspan="5" class="empty-cell">
+            <i class="fa-solid fa-mobile-screen-button"></i>
+            ${devices.length ? "Không tìm thấy thiết bị phù hợp." : "Chưa có dữ liệu thiết bị."}
+        </td></tr>`;
 
     if ($("devicesCount")) {
-        $("devicesCount").textContent =
-            `${rows.length} / ${devices.length} thiết bị`;
+        $("devicesCount").textContent = `${rows.length} / ${devices.length}`;
     }
 }
 
 function renderRecent() {
     if (!$("recentBody")) return;
 
-    const rows = [...devices]
-        .sort((a, b) =>
-            (Date.parse(val(b, "lastSeen")) || 0) -
-            (Date.parse(val(a, "lastSeen")) || 0)
-        )
+    const recent = [...devices]
+        .sort((a, b) => {
+            const aTime = Date.parse(val(a, "lastSeen", "updatedAt")) || 0;
+            const bTime = Date.parse(val(b, "lastSeen", "updatedAt")) || 0;
+            return bTime - aTime;
+        })
         .slice(0, 5);
 
-    $("recentBody").innerHTML = rows.length
-        ? rows.map(device => `
+    $("recentBody").innerHTML = recent.length
+        ? recent.map(device => `
             <tr>
-                <td>
-                    <div class="item-title">
-                        ${esc(val(device, "deviceId") || "—")}
-                    </div>
-                </td>
-
-                <td>${esc(val(device, "ip") || "—")}</td>
-                <td>${esc(val(device, "lastEvent") || "—")}</td>
+                <td><strong>${esc(val(device, "deviceId", "id") || "—")}</strong></td>
+                <td>${esc(val(device, "ip", "lastIP") || "—")}</td>
                 <td>${statusBadge(val(device, "status"))}</td>
-                <td>${esc(val(device, "lastSeen") || "—")}</td>
             </tr>
         `).join("")
-        : `
-            <tr>
-                <td colspan="5">
-                    <div class="empty">
-                        Chưa có hoạt động để hiển thị.
-                    </div>
-                </td>
-            </tr>
-        `;
+        : `<tr><td colspan="3" class="empty-cell">Chưa có hoạt động để hiển thị.</td></tr>`;
 }
-/* =====================================================
-   HỘP THOẠI
-===================================================== */
 
-function openModal(title, body, primary = "Đóng", action = null) {
+/*
+ * Chỉ cập nhật nội dung hiển thị từ dữ liệu đã có.
+ * Không fetch, không gọi API.
+ */
+function updateLiveTimes() {
+    document.querySelectorAll("[data-live-time]").forEach(element => {
+        const value = element.getAttribute("data-live-time");
+
+        element.textContent = relativeTime(value);
+        element.title = formatDate(value);
+    });
+}
+
+/* ==================== MODAL ==================== */
+
+function openModal(title, body, primary = "Xác nhận", action = null) {
     modalState = action;
 
-    if ($("modalTitle")) {
-        $("modalTitle").textContent = title;
-    }
-
-    if ($("modalBody")) {
-        $("modalBody").innerHTML = body;
-    }
+    if ($("modalTitle")) $("modalTitle").textContent = title;
+    if ($("modalBody")) $("modalBody").innerHTML = body;
 
     if ($("modalPrimary")) {
-        $("modalPrimary").textContent = primary;
-        $("modalPrimary").style.display =
-            action ? "inline-block" : "none";
+        $("modalPrimary").innerHTML = `<i class="fa-solid fa-check"></i> ${esc(primary)}`;
+        $("modalPrimary").style.display = action ? "inline-flex" : "none";
     }
 
     $("modalBackdrop")?.classList.add("show");
+    $("modalBackdrop")?.setAttribute("aria-hidden", "false");
 }
 
 function closeModal() {
     $("modalBackdrop")?.classList.remove("show");
+    $("modalBackdrop")?.setAttribute("aria-hidden", "true");
     modalState = null;
 }
 
-function modalAction() {
-    if (typeof modalState === "function") {
-        modalState();
+async function modalAction() {
+    if (typeof modalState !== "function") return;
+
+    const action = modalState;
+
+    if ($("modalPrimary")) {
+        $("modalPrimary").disabled = true;
+    }
+
+    try {
+        await action();
+    } finally {
+        if ($("modalPrimary")) {
+            $("modalPrimary").disabled = false;
+        }
     }
 }
 
 function viewItem(type, id) {
-    const list =
-        type === "file"
-            ? files
-            : type === "quiz"
-                ? quizzes
-                : devices;
+    const list = type === "file"
+        ? files
+        : type === "quiz"
+            ? quizzes
+            : devices;
 
-    const item = list.find(value =>
-        String(
-            val(
-                value,
-                type === "device" ? "deviceId" : "id",
-                type === "quiz" ? "code" : "id"
-            )
-        ) === String(id)
-    );
+    const item = list.find(value => {
+        const itemId = type === "device"
+            ? val(value, "deviceId", "id")
+            : type === "quiz"
+                ? val(value, "id", "code")
+                : val(value, "id", "fileId");
+
+        return String(itemId) === String(id);
+    });
 
     if (!item) {
         showNotice("Không tìm thấy dữ liệu cần xem.", "error");
@@ -895,21 +865,14 @@ function viewItem(type, id) {
     }
 
     const body = Object.entries(item)
-        .filter(([key]) =>
-            !key.toLowerCase().includes("token")
-        )
+        .filter(([key]) => !key.toLowerCase().includes("token"))
         .map(([key, value]) => `
-            <div style="padding:9px 0;border-bottom:1px solid #edf0f5">
+            <div style="padding:10px 0;border-bottom:1px solid #edf0f5">
                 <div style="font-size:10px;color:#8a94a8;margin-bottom:4px">
                     ${esc(key)}
                 </div>
-
                 <div style="font-size:12px;overflow-wrap:anywhere">
-                    ${esc(
-                        typeof value === "object"
-                            ? JSON.stringify(value)
-                            : value
-                    )}
+                    ${esc(typeof value === "object" ? JSON.stringify(value) : value)}
                 </div>
             </div>
         `).join("");
@@ -917,69 +880,56 @@ function viewItem(type, id) {
     openModal(
         "Chi tiết " + ({
             file: "tài liệu",
-            quiz: "quiz",
+            quiz: "Quiz",
             device: "thiết bị"
         }[type]),
-        body
+        body,
+        "Đóng",
+        null
     );
 }
 
-function viewIPs(id) {
-    const device = devices.find(item =>
-        String(val(item, "deviceId", "id")) === String(id)
-    );
+/* ==================== API THAO TÁC ADMIN ==================== */
 
-    if (!device) {
-        showNotice("Không tìm thấy thiết bị.", "error");
-        return;
+async function adminAction(action, data = {}) {
+    const url = new URL(config.gas);
+
+    url.searchParams.set("action", "admin_" + action);
+    url.searchParams.set("_", String(Date.now()));
+
+    for (const [key, value] of Object.entries(data)) {
+        url.searchParams.set(key, String(value ?? ""));
     }
 
-    const ips = String(
-        val(device, "ipHistory", "ip") || ""
-    ).split("|").filter(Boolean);
+    if (config.key) {
+        url.searchParams.set("adminKey", config.key);
+    }
 
-    openModal(
-        "Lịch sử IP — " + id,
-        ips.length
-            ? ips.map(ip => `
-                <div style="padding:11px;border-bottom:1px solid var(--line);font-size:12px">
-                    <i class="fa-solid fa-network-wired"
-                       style="color:var(--primary);margin-right:8px"></i>
-                    ${esc(ip)}
-                </div>
-            `).join("")
-            : "<p>Không có lịch sử IP.</p>"
-    );
+    const result = await request(url.toString());
+
+    if (result?.success === false || result?.ok === false) {
+        throw new Error(result.message || result.error || "Thao tác thất bại.");
+    }
+
+    return result;
 }
-
-/* =====================================================
-   THAO TÁC QUẢN TRỊ
-===================================================== */
 
 function confirmLock(id) {
     openModal(
         "Khóa thiết bị?",
-        `
-            <p style="font-size:12px;line-height:1.7;color:#667085">
-                Thiết bị <b>${esc(id)}</b> sẽ bị khóa nếu backend
-                chấp nhận và cập nhật trạng thái thành công.
-            </p>
-
-            <p style="font-size:11px;color:#c24141">
-                Hãy xác nhận đúng thiết bị trước khi thực hiện.
-            </p>
-        `,
+        `<p>Em có chắc muốn khóa thiết bị <strong>${esc(id)}</strong> không?</p>`,
         "Khóa thiết bị",
         async () => {
             try {
-                await adminAction("lock_device", {
-                    deviceId: id
-                });
-
+                await adminAction("lock_device", { deviceId: id });
                 closeModal();
+                showNotice("Đã gửi yêu cầu khóa thiết bị.", "success");
                 await loadDevices();
             } catch (error) {
-                showNotice(error.message, "error");
+                showNotice(
+                    "Không khóa được thiết bị.\n" + errorWithDeviceId(error.message),
+                    "error"
+                );
             }
         }
     );
@@ -988,25 +938,17 @@ function confirmLock(id) {
 function confirmUnlock(id) {
     openModal(
         "Mở khóa thiết bị?",
-        `
-            <p style="font-size:12px;line-height:1.7;color:#667085">
-                Thiết bị <b>${esc(id)}</b> sẽ được mở khóa.
-                Nếu token đã hết hạn, thiết bị vẫn cần thực hiện
-                quy trình gia hạn theo API.
-            </p>
-        `,
-        "Mở khóa thiết bị",
+        `<p>Em có chắc muốn mở khóa thiết bị <strong>${esc(id)}</strong> không?</p>`,
+        "Mở khóa",
         async () => {
             try {
-                await adminAction("unlock_device", {
-                    deviceId: id
-                });
-
+                await adminAction("unlock_device", { deviceId: id });
                 closeModal();
+                showNotice("Đã gửi yêu cầu mở khóa thiết bị.", "success");
                 await loadDevices();
             } catch (error) {
                 showNotice(
-                    "Không mở khóa được thiết bị: " + error.message,
+                    "Không mở khóa được thiết bị.\n" + errorWithDeviceId(error.message),
                     "error"
                 );
             }
@@ -1017,28 +959,17 @@ function confirmUnlock(id) {
 function confirmDeleteDevice(id) {
     openModal(
         "Xóa thiết bị?",
-        `
-            <p style="font-size:12px;line-height:1.7;color:#667085">
-                Em sắp xóa thiết bị <b>${esc(id)}</b> khỏi danh sách
-                quản trị. Thao tác này không thể hoàn tác.
-            </p>
-
-            <p style="font-size:11px;color:#c24141">
-                Chỉ xác nhận nếu em chắc chắn muốn xóa thiết bị này.
-            </p>
-        `,
+        `<p>Em sắp xóa thiết bị <strong>${esc(id)}</strong>. Thao tác này có thể không hoàn tác được.</p>`,
         "Xóa thiết bị",
         async () => {
             try {
-                await adminAction("delete_device", {
-                    deviceId: id
-                });
-
+                await adminAction("delete_device", { deviceId: id });
                 closeModal();
+                showNotice("Đã gửi yêu cầu xóa thiết bị.", "success");
                 await loadDevices();
             } catch (error) {
                 showNotice(
-                    "Không xóa được thiết bị: " + error.message,
+                    "Không xóa được thiết bị.\n" + errorWithDeviceId(error.message),
                     "error"
                 );
             }
@@ -1046,49 +977,7 @@ function confirmDeleteDevice(id) {
     );
 }
 
-async function adminAction(action, data = {}) {
-    if (!config.gas) {
-        throw new Error("Chưa cấu hình Admin API.");
-    }
-
-    const url = new URL(config.gas);
-
-    url.searchParams.set("action", "admin_" + action);
-    url.searchParams.set("_", String(Date.now()));
-
-    Object.entries(data).forEach(([key, value]) => {
-        url.searchParams.set(key, String(value ?? ""));
-    });
-
-    if (config.key) {
-        url.searchParams.set("adminKey", config.key);
-    } else {
-        url.searchParams.delete("adminKey");
-    }
-
-    const result = await request(url.toString());
-
-    if (
-        result &&
-        (result.success === false || result.ok === false)
-    ) {
-        throw new Error(
-            result.message ||
-            result.error ||
-            "Thao tác thất bại."
-        );
-    }
-
-    showNotice(
-        "API đã phản hồi yêu cầu. Hãy kiểm tra dữ liệu đã cập nhật.",
-        "success"
-    );
-
-    return result;
-}
-/* =====================================================
-   THÊM TÀI LIỆU / QUIZ
-===================================================== */
+/* ==================== THÊM TÀI LIỆU / QUIZ ==================== */
 
 function openItemModal(type) {
     const isFile = type === "file";
@@ -1096,19 +985,13 @@ function openItemModal(type) {
     openModal(
         isFile ? "Thêm tài liệu" : "Thêm Quiz",
         `
-            <p style="font-size:12px;line-height:1.7;color:#667085">
-                Nhập thông tin bên dưới. Việc lưu dữ liệu thật cần
-                endpoint thêm dữ liệu tương ứng trong Apps Script.
-            </p>
-
-            <div class="field">
-                <label>Tên ${isFile ? "tài liệu" : "quiz"}</label>
-                <input id="newName" placeholder="Nhập tên...">
+            <div class="form-group">
+                <label for="newName">Tên ${isFile ? "tài liệu" : "Quiz"}</label>
+                <input id="newName" type="text" placeholder="Nhập tên..." />
             </div>
-
-            <div class="field">
-                <label>${isFile ? "ID tài liệu" : "Mã tham gia quiz"}</label>
-                <input id="newCode" placeholder="Nhập ID / mã...">
+            <div class="form-group">
+                <label for="newCode">${isFile ? "ID tài liệu" : "Mã tham gia Quiz"}</label>
+                <input id="newCode" type="text" placeholder="Nhập ID hoặc mã..." />
             </div>
         `,
         "Gửi yêu cầu",
@@ -1117,29 +1000,26 @@ function openItemModal(type) {
             const code = $("newCode")?.value.trim() || "";
 
             if (!name || !code) {
-                showNotice(
-                    "Em hãy nhập đủ tên và ID/mã.",
-                    "error"
-                );
+                showNotice("Em hãy nhập đủ tên và ID/mã.", "error");
                 return;
             }
 
-            const action = isFile
-                ? "add_file"
-                : "add_quiz";
-
             try {
-                await adminAction(action, {
-                    name,
-                    id: isFile ? code : "",
-                    code: isFile ? "" : code
-                });
+                await adminAction(
+                    isFile ? "add_file" : "add_quiz",
+                    {
+                        name,
+                        id: isFile ? code : "",
+                        code: isFile ? "" : code
+                    }
+                );
 
                 closeModal();
+                showNotice("Đã gửi yêu cầu thêm dữ liệu.", "success");
                 await loadAll();
             } catch (error) {
                 showNotice(
-                    "Chưa thêm được dữ liệu: " + error.message,
+                    "Không thêm được dữ liệu.\n" + errorWithDeviceId(error.message),
                     "error"
                 );
             }
@@ -1147,9 +1027,7 @@ function openItemModal(type) {
     );
 }
 
-/* =====================================================
-   SAO CHÉP
-===================================================== */
+/* ==================== SAO CHÉP ==================== */
 
 async function copyText(value) {
     if (!value) {
@@ -1161,32 +1039,53 @@ async function copyText(value) {
         await navigator.clipboard.writeText(String(value));
         showNotice("Đã sao chép.", "success");
     } catch {
+        const textarea = document.createElement("textarea");
+        textarea.value = String(value);
+        textarea.style.position = "fixed";
+        textarea.style.opacity = "0";
+
+        document.body.appendChild(textarea);
+        textarea.select();
+
+        const copied = document.execCommand("copy");
+        textarea.remove();
+
         showNotice(
-            "Không thể sao chép tự động trên trình duyệt này.",
-            "error"
+            copied ? "Đã sao chép." : "Không thể sao chép tự động.",
+            copied ? "success" : "error"
         );
     }
 }
 
-/* =====================================================
-   KHỞI TẠO
-===================================================== */
+/* ==================== KHỞI TẠO ==================== */
+
+function bindFilters() {
+    $("fileSearch")?.addEventListener("input", renderFiles);
+    $("fileStatus")?.addEventListener("change", renderFiles);
+
+    $("quizSearch")?.addEventListener("input", renderQuizzes);
+    $("quizStatus")?.addEventListener("change", renderQuizzes);
+
+    $("deviceSearch")?.addEventListener("input", renderDevices);
+    $("deviceStatus")?.addEventListener("change", renderDevices);
+
+    document.addEventListener("keydown", event => {
+        if (event.key === "Escape") closeModal();
+    });
+}
 
 initSettings();
+bindFilters();
 renderAll();
 
 /*
-  Tự tải dữ liệu từ Apps Script khi mở trang.
-
-  Các action cần tồn tại trong backend:
-  - admin_files
-  - admin_quizzes
-  - admin_devices
-  - admin_lock_device
-  - admin_unlock_device
-  - admin_delete_device
-  - admin_add_file
-  - admin_add_quiz
-*/
-
+ * Chỉ gọi API khi mở trang lần đầu.
+ * Không tạo vòng lặp gọi API.
+ */
 loadAll();
+
+/*
+ * Cập nhật thời gian tương đối mỗi giây trên giao diện.
+ * Hàm này KHÔNG gọi API và KHÔNG tải lại danh sách thiết bị.
+ */
+setInterval(updateLiveTimes, 1000);
