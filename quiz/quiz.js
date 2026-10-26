@@ -5,12 +5,10 @@
 const CONFIG = {
     API_URL: "https://api-quiz.abcd1601ab.workers.dev/list",
     API_TIMEOUT: 20000,
-
     STORAGE_VIEW: "quiz_view_mode_v1",
     STORAGE_DEVICE_ID: "kho_tai_lieu_device_id_v1",
     STORAGE_DEVICE_TOKEN: "kho_tai_lieu_device_token_v1"
 };
-
 
 /* ======================== STATE ========================= */
 
@@ -22,17 +20,13 @@ const state = {
     loading: false
 };
 
-
 /* ================= DEVICE AUTHENTICATION ================ */
 
 /*
  * QUY TRÌNH XÁC THỰC:
- *
  * 1. /check chỉ gửi deviceId.
- * 2. Nếu thiết bị đang hoạt động hoặc hết hạn:
- *    gọi /renew.
- * 3. Nếu thiết bị chưa đăng ký:
- *    gọi /register.
+ * 2. Nếu thiết bị đang hoạt động hoặc hết hạn: gọi /renew.
+ * 3. Nếu thiết bị chưa đăng ký: gọi /register.
  * 4. Lưu token mới nếu Worker trả về.
  * 5. Gọi /list bằng deviceId và token mới nhất.
  *
@@ -44,20 +38,17 @@ function getDeviceCredentials() {
         return {
             deviceId:
                 localStorage.getItem(CONFIG.STORAGE_DEVICE_ID) || "",
-
             deviceToken:
                 localStorage.getItem(CONFIG.STORAGE_DEVICE_TOKEN) || ""
         };
     } catch (error) {
         console.error("Không thể đọc thông tin thiết bị:", error);
-
         return {
             deviceId: "",
             deviceToken: ""
         };
     }
 }
-
 
 function createDeviceId() {
     if (
@@ -76,7 +67,6 @@ function createDeviceId() {
     );
 }
 
-
 function getErrorCode(result) {
     return String(
         result?.code ||
@@ -87,17 +77,14 @@ function getErrorCode(result) {
     ).trim().toUpperCase();
 }
 
-
 function createApiError(message, code = "") {
     const error = new Error(
         message || "Đã xảy ra lỗi khi gọi API."
     );
 
     error.code = code;
-
     return error;
 }
-
 
 async function ensureDeviceRegistered(signal) {
     const credentials = getDeviceCredentials();
@@ -109,10 +96,6 @@ async function ensureDeviceRegistered(signal) {
     let deviceToken = String(
         credentials.deviceToken || ""
     ).trim();
-
-    /*
-     * Chỉ tạo deviceId nếu trình duyệt chưa có.
-     */
 
     if (!deviceId) {
         deviceId = createDeviceId();
@@ -130,19 +113,6 @@ async function ensureDeviceRegistered(signal) {
     }
 
     const workerBase = new URL(CONFIG.API_URL).origin;
-
-
-    /*
-     * GỌI WORKER
-     *
-     * /check:
-     * - Chỉ gửi deviceId.
-     * - Không gửi token trong URL hoặc header.
-     *
-     * Các endpoint khác:
-     * - Gửi deviceId.
-     * - Gửi token hiện tại nếu có.
-     */
 
     async function callWorker(path, params = {}) {
         const url = new URL(path, workerBase);
@@ -219,7 +189,6 @@ async function ensureDeviceRegistered(signal) {
         };
     }
 
-
     function throwWorkerError(result, fallback) {
         throw createApiError(
             result.data?.message ||
@@ -228,11 +197,6 @@ async function ensureDeviceRegistered(signal) {
             result.code
         );
     }
-
-
-    /*
-     * Lưu token mới từ các cấu trúc phản hồi phổ biến.
-     */
 
     function saveReturnedToken(data) {
         const token =
@@ -260,7 +224,6 @@ async function ensureDeviceRegistered(signal) {
             );
 
             deviceToken = newToken;
-
             return true;
         } catch (error) {
             throw createApiError(
@@ -269,11 +232,7 @@ async function ensureDeviceRegistered(signal) {
         }
     }
 
-
-    /*
-     * BƯỚC 1: CHECK
-     * Chỉ gửi deviceId.
-     */
+    /* BƯỚC 1: CHECK - chỉ gửi deviceId */
 
     const check = await callWorker("/check");
 
@@ -305,11 +264,7 @@ async function ensureDeviceRegistered(signal) {
         "DEVICE_NOT_FOUND"
     ].includes(check.code);
 
-
-    /*
-     * BƯỚC 2: RENEW
-     * Thiết bị đã tồn tại hoặc hết hạn thì gọi /renew.
-     */
+    /* BƯỚC 2: RENEW */
 
     if (checkSuccess || deviceExpired) {
         const renew = await callWorker("/renew");
@@ -343,11 +298,7 @@ async function ensureDeviceRegistered(signal) {
         };
     }
 
-
-    /*
-     * BƯỚC 3: REGISTER
-     * Chỉ đăng ký nếu /check xác nhận chưa tồn tại.
-     */
+    /* BƯỚC 3: REGISTER */
 
     if (deviceNotRegistered) {
         const registration = await callWorker("/register");
@@ -396,17 +347,11 @@ async function ensureDeviceRegistered(signal) {
         };
     }
 
-
-    /*
-     * Các lỗi khác không được tự động đăng ký lại.
-     */
-
     throwWorkerError(
         check,
         "Không thể xác minh thiết bị. Vui lòng thử lại."
     );
 }
-
 
 /* ============================ DOM ======================== */
 
@@ -414,16 +359,13 @@ const elements = {};
 
 document.addEventListener("DOMContentLoaded", init);
 
-
 async function init() {
     initElements();
     bindEvents();
     applyViewMode();
     updateSearchButton();
-
     await loadQuizzes(false);
 }
-
 
 function initElements() {
     elements.refreshButton =
@@ -471,7 +413,6 @@ function initElements() {
     elements.toastMessage =
         document.getElementById("toastMessage");
 }
-
 
 /* ============================ EVENTS ===================== */
 
@@ -545,7 +486,6 @@ function bindEvents() {
     );
 }
 
-
 /* ======================== LOAD QUIZZES =================== */
 
 async function loadQuizzes(showToast = false) {
@@ -582,21 +522,13 @@ async function loadQuizzes(showToast = false) {
             controller.abort();
         }, CONFIG.API_TIMEOUT);
 
-
-        /*
-         * BƯỚC 1:
-         * Check -> Renew hoặc Register.
-         */
+        /* BƯỚC 1: CHECK -> RENEW hoặc REGISTER */
 
         await ensureDeviceRegistered(
             controller.signal
         );
 
-
-        /*
-         * BƯỚC 2:
-         * Đọc lại deviceId và token sau xác thực.
-         */
+        /* BƯỚC 2: Đọc lại thông tin thiết bị */
 
         const credentials = getDeviceCredentials();
 
@@ -615,11 +547,7 @@ async function loadQuizzes(showToast = false) {
             );
         }
 
-
-        /*
-         * BƯỚC 3:
-         * Gọi /list bằng thông tin mới nhất.
-         */
+        /* BƯỚC 3: Gọi /list */
 
         const requestUrl = new URL(CONFIG.API_URL);
 
@@ -708,11 +636,7 @@ async function loadQuizzes(showToast = false) {
             );
         }
 
-
-        /*
-         * BƯỚC 4:
-         * Chuẩn hóa và hiển thị danh sách Quiz.
-         */
+        /* BƯỚC 4: Chuẩn hóa dữ liệu */
 
         const rawQuizzes = normalizeApiData(result);
 
@@ -729,7 +653,6 @@ async function loadQuizzes(showToast = false) {
                 "Đã cập nhật dữ liệu phiên Quiz."
             );
         }
-
     } catch (error) {
         console.error("QUIZ API ERROR:", error);
 
@@ -742,7 +665,6 @@ async function loadQuizzes(showToast = false) {
 
         updateCount();
         showError(getErrorMessage(error));
-
     } finally {
         if (timeout !== null) {
             clearTimeout(timeout);
@@ -751,10 +673,10 @@ async function loadQuizzes(showToast = false) {
         hideLoading();
 
         state.loading = false;
+
         setRefreshLoading(false);
     }
 }
-
 
 /* ===================== NORMALIZE API DATA ================ */
 
@@ -791,7 +713,6 @@ function normalizeApiData(result) {
         "Dữ liệu API không có danh sách phiên Quiz hợp lệ."
     );
 }
-
 
 /* ===================== NORMALIZE QUIZZES ================= */
 
@@ -852,7 +773,6 @@ function normalizeQuizzes(quizzes) {
     return normalized;
 }
 
-
 /* ====================== QUIZ STATUS ====================== */
 
 function getQuizStatus(quiz) {
@@ -886,6 +806,13 @@ function getQuizStatus(quiz) {
         };
     }
 
+    /*
+     * QUAN TRỌNG:
+     * Khi thời gian hiện tại bằng hoặc lớn hơn endTime,
+     * phiên Quiz lập tức được xem là đã đóng.
+     * Không phụ thuộc active hoặc status từ API.
+     */
+
     if (now >= endTime) {
         return {
             type: "closed",
@@ -901,6 +828,7 @@ function getQuizStatus(quiz) {
     };
 }
 
+/* ====================== PARSE QUIZ TIME ================== */
 
 function parseQuizTime(value) {
     if (
@@ -925,13 +853,36 @@ function parseQuizTime(value) {
             : null;
     }
 
-    const parsed = Date.parse(String(value));
+    /*
+     * Chuỗi dạng YYYY-MM-DDTHH:mm:ss không có múi giờ
+     * được hiểu theo giờ Việt Nam UTC+07:00.
+     *
+     * Ví dụ:
+     * 2026-11-26T12:00:00
+     * = 12 giờ trưa ngày 26/11/2026 tại Việt Nam.
+     *
+     * Nếu chuỗi đã có Z hoặc độ lệch múi giờ,
+     * giữ nguyên múi giờ được cung cấp.
+     */
+
+    let dateString = String(value).trim();
+
+    const hasExplicitTimezone =
+        /(?:Z|[+-]\d{2}:?\d{2})$/i.test(dateString);
+
+    if (
+        !hasExplicitTimezone &&
+        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?$/.test(dateString)
+    ) {
+        dateString += "+07:00";
+    }
+
+    const parsed = Date.parse(dateString);
 
     return Number.isFinite(parsed)
         ? parsed
         : null;
 }
-
 
 /* ====================== COUNTDOWN ======================== */
 
@@ -983,7 +934,6 @@ function formatCountdown(milliseconds) {
     return parts.join(" ");
 }
 
-
 /* ============================ FILTER ===================== */
 
 function filterAndRender() {
@@ -1009,7 +959,6 @@ function filterAndRender() {
     updateCount();
     updateEmptyState();
 }
-
 
 /* ============================ RENDER ===================== */
 
@@ -1037,7 +986,6 @@ function renderQuizzes() {
 
     applyViewMode();
 }
-
 
 /* ======================== CREATE CARD ==================== */
 
@@ -1086,16 +1034,13 @@ function createQuizCard(quiz) {
         description.textContent =
             "Vui lòng quay trở lại sau " +
             formatCountdown(startTime - Date.now());
-
     } else if (status.type === "closed") {
         description.textContent =
             "Phiên Quiz đã kết thúc.";
-
     } else if (status.type === "open") {
         description.textContent =
             quiz.description ||
             "Phiên Quiz đã sẵn sàng. Em có thể bắt đầu!";
-
     } else {
         description.textContent =
             "Chưa xác định được thời gian mở phiên Quiz.";
@@ -1136,6 +1081,11 @@ function createQuizCard(quiz) {
         playButton.addEventListener(
             "click",
             function() {
+                /*
+                 * Kiểm tra lại thời gian ngay khi nhấn,
+                 * không chỉ dựa vào trạng thái lúc render.
+                 */
+
                 const currentStatus =
                     getQuizStatus(quiz);
 
@@ -1155,7 +1105,6 @@ function createQuizCard(quiz) {
                 openQuiz(quiz.code);
             }
         );
-
     } else {
         playButton.disabled = true;
         playButton.classList.add("disabled");
@@ -1177,7 +1126,6 @@ function createQuizCard(quiz) {
     return card;
 }
 
-
 /* =========================== OPEN QUIZ =================== */
 
 function openQuiz(code) {
@@ -1194,11 +1142,6 @@ function openQuiz(code) {
         "running/index.html?code=" +
         encodeURIComponent(cleanCode);
 
-    /*
-     * Không dùng noopener trong tham số window.open ở đây,
-     * vì một số trình duyệt trả về null dù tab đã mở.
-     */
-
     const newTab = window.open(
         target,
         "_blank"
@@ -1209,7 +1152,6 @@ function openQuiz(code) {
             "Trình duyệt đã chặn cửa sổ mới. " +
             "Hãy cho phép mở tab."
         );
-
         return;
     }
 
@@ -1220,7 +1162,6 @@ function openQuiz(code) {
     }
 }
 
-
 /* ========================== VIEW MODE ==================== */
 
 function loadSavedViewMode() {
@@ -1230,12 +1171,10 @@ function loadSavedViewMode() {
         ) === "list"
             ? "list"
             : "grid";
-
     } catch (error) {
         return "grid";
     }
 }
-
 
 function setViewMode(mode) {
     if (
@@ -1262,7 +1201,6 @@ function setViewMode(mode) {
     applyViewMode();
 }
 
-
 function applyViewMode() {
     if (!elements.quizContainer) {
         return;
@@ -1288,7 +1226,6 @@ function applyViewMode() {
     }
 }
 
-
 /* ============================ SEARCH ===================== */
 
 function clearSearch() {
@@ -1302,7 +1239,6 @@ function clearSearch() {
     filterAndRender();
 }
 
-
 function updateSearchButton() {
     if (elements.clearSearch) {
         elements.clearSearch.classList.toggle(
@@ -1311,7 +1247,6 @@ function updateSearchButton() {
         );
     }
 }
-
 
 /* ============================ COUNT ====================== */
 
@@ -1329,7 +1264,6 @@ function updateCount() {
             : total + " phiên";
 }
 
-
 /* ========================= EMPTY STATE =================== */
 
 function updateEmptyState() {
@@ -1337,7 +1271,6 @@ function updateEmptyState() {
         showEmpty(
             "Hiện chưa có phiên Quiz nào được mở."
         );
-
         return;
     }
 
@@ -1345,13 +1278,11 @@ function updateEmptyState() {
         showEmpty(
             "Không tìm thấy phiên Quiz phù hợp."
         );
-
         return;
     }
 
     hideEmpty();
 }
-
 
 /* ============================ STATES ===================== */
 
@@ -1364,13 +1295,11 @@ function showLoading() {
     hideEmpty();
 }
 
-
 function hideLoading() {
     if (elements.loadingState) {
         elements.loadingState.classList.add("hidden");
     }
 }
-
 
 function showEmpty(message) {
     hideLoading();
@@ -1385,28 +1314,88 @@ function showEmpty(message) {
     }
 }
 
-
 function hideEmpty() {
     if (elements.emptyState) {
         elements.emptyState.classList.add("hidden");
     }
 }
 
+/* ============================== ERROR =================== */
 
 function showError(message) {
-    hideLoading();
-    hideEmpty();
-
     if (elements.errorMessage) {
         elements.errorMessage.textContent =
-            message || "Đã xảy ra lỗi khi tải dữ liệu.";
+            message || "Không thể tải dữ liệu.";
     }
 
     if (elements.errorState) {
         elements.errorState.classList.remove("hidden");
     }
+
+    showDeviceIdInError();
+
+    if (elements.quizContainer) {
+        elements.quizContainer.innerHTML = "";
+    }
+
+    if (elements.emptyState) {
+        elements.emptyState.classList.add("hidden");
+    }
 }
 
+function showDeviceIdInError() {
+    if (!elements.errorState) {
+        return;
+    }
+
+    let deviceIdLine =
+        document.getElementById("deviceIdErrorLine");
+
+    if (!deviceIdLine) {
+        deviceIdLine = document.createElement("div");
+
+        deviceIdLine.id = "deviceIdErrorLine";
+
+        Object.assign(deviceIdLine.style, {
+            display: "block",
+            marginTop: "8px",
+            fontSize: "13px",
+            lineHeight: "1.6",
+            color: "#64748b",
+            overflowWrap: "anywhere",
+            userSelect: "text"
+        });
+
+        if (
+            elements.errorMessage &&
+            elements.errorMessage.parentNode
+        ) {
+            elements.errorMessage.insertAdjacentElement(
+                "afterend",
+                deviceIdLine
+            );
+        } else {
+            elements.errorState.appendChild(deviceIdLine);
+        }
+    }
+
+    let deviceId = "";
+
+    try {
+        deviceId = String(
+            localStorage.getItem(CONFIG.STORAGE_DEVICE_ID) || ""
+        ).trim();
+    } catch (error) {
+        console.warn(
+            "Không thể đọc ID thiết bị:",
+            error
+        );
+    }
+
+    deviceIdLine.textContent = deviceId
+        ? "ID thiết bị: " + deviceId
+        : "ID thiết bị: Chưa có hoặc chưa lưu được";
+}
 
 function hideError() {
     if (elements.errorState) {
@@ -1414,12 +1403,11 @@ function hideError() {
     }
 }
 
-
 /* ======================= ERROR MESSAGE =================== */
 
 function getErrorMessage(error) {
     if (error?.name === "AbortError") {
-        return "API không phản hồi sau 20 giây. Vui lòng thử lại.";
+        return "API không phản hồi. Vui lòng thử lại.";
     }
 
     const deviceErrorCodes = [
@@ -1441,10 +1429,9 @@ function getErrorMessage(error) {
 
     return (
         error?.message ||
-        "Không thể kết nối tới API Quiz."
+        "Không thể kết nối tới API."
     );
 }
-
 
 /* ======================== REFRESH BUTTON ================ */
 
@@ -1465,11 +1452,9 @@ function setRefreshLoading(loading) {
     }
 }
 
-
 /* ============================== TOAST ==================== */
 
 let toastTimer = null;
-
 
 function showToastMessage(message) {
     if (
@@ -1489,7 +1474,6 @@ function showToastMessage(message) {
         elements.toast.classList.remove("show");
     }, 3000);
 }
-
 
 /* ============================ KEYBOARD ================== */
 
@@ -1513,12 +1497,13 @@ function handleKeyboard(event) {
     }
 }
 
-
 /* ===================== AUTO UPDATE STATUS ================ */
 
 /*
- * Cập nhật trạng thái và thời gian đếm ngược mỗi giây.
+ * Cập nhật trạng thái mỗi giây.
  * Không gọi API mỗi giây.
+ * Khi vượt qua endTime, thẻ Quiz sẽ được render lại
+ * với trạng thái "Đã đóng" và nút chơi bị khóa.
  */
 
 setInterval(function() {
