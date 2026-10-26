@@ -1,730 +1,969 @@
+
 <!DOCTYPE html>
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="theme-color" content="#f5f7fb">
-
-    <title>Admin — Kho tài liệu & Quiz</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#6d5ce8">
+    <meta name="description" content="Trang quản trị Kho tài liệu và Kho học tập">
+    <title>Admin — Kho tài liệu</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-
-    <link
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
-        rel="stylesheet"
-    >
-
-    <link
-        rel="stylesheet"
-        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
-    >
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
 </head>
 
 <body>
+    <div class="admin-app">
 
-<div
-    class="mobile-shade"
-    id="shade"
-    onclick="toggleSidebar(false)"
-></div>
+        <!-- Lớp phủ trên điện thoại -->
+        <div id="shade" class="shade" onclick="toggleSidebar(false)"></div>
 
-<!-- SIDEBAR -->
-<aside class="sidebar" id="sidebar">
-
-    <div class="brand">
-        <div class="brand-icon">
-            <i class="fa-solid fa-layer-group"></i>
-        </div>
-
-        <div>
-            <strong>Kho quản trị</strong>
-            <small>ADMIN CONTROL CENTER</small>
-        </div>
-    </div>
-
-    <div class="nav-label">TỔNG QUAN</div>
-
-    <nav class="nav">
-        <button class="active" data-page="dashboard">
-            <i class="fa-solid fa-chart-pie"></i>
-            Tổng quan
-        </button>
-    </nav>
-
-    <div class="nav-label">QUẢN LÝ NỘI DUNG</div>
-
-    <nav class="nav">
-        <button data-page="files">
-            <i class="fa-regular fa-folder-open"></i>
-            Kho tài liệu
-            <span id="fileNavCount" style="margin-left:auto"></span>
-        </button>
-
-        <button data-page="quizzes">
-            <i class="fa-solid fa-graduation-cap"></i>
-            Kho Quiz
-        </button>
-    </nav>
-
-    <div class="nav-label">HỆ THỐNG</div>
-
-    <nav class="nav">
-        <button data-page="devices">
-            <i class="fa-solid fa-laptop"></i>
-            Thiết bị
-        </button>
-
-        <button data-page="settings">
-            <i class="fa-solid fa-sliders"></i>
-            Kết nối API
-        </button>
-    </nav>
-
-    <div class="side-bottom">
-        <b>
-            <i class="fa-solid fa-shield-halved"></i>
-            Khu vực quản trị
-        </b>
-
-        <br>
-
-        Quản lý tài liệu, bài quiz và thiết bị truy cập.
-
-        <br>
-
-        <span id="connectionText">Chưa kết nối API</span>
-    </div>
-
-</aside>
-
-<!-- MAIN -->
-<main class="main">
-
-    <!-- TOPBAR -->
-    <header class="topbar">
-
-        <div style="display:flex;gap:11px;align-items:flex-start">
-
-            <button
-                class="icon-btn hamburger"
-                onclick="toggleSidebar(true)"
-                aria-label="Mở menu"
-            >
-                <i class="fa-solid fa-bars"></i>
-            </button>
-
-            <div>
-                <div class="eyebrow">KHO TÀI LIỆU / ADMIN</div>
-                <h1 id="pageTitle">Tổng quan hệ thống</h1>
-            </div>
-
-        </div>
-
-        <div class="top-actions">
-
-            <button
-                class="btn"
-                onclick="refreshCurrent()"
-            >
-                <i class="fa-solid fa-rotate"></i>
-                Làm mới
-            </button>
-
-            <div class="profile" title="Quản trị viên">A</div>
-
-        </div>
-
-    </header>
-
-    <!-- THÔNG BÁO -->
-    <div
-        class="notice"
-        id="notice"
-        role="status"
-        aria-live="polite"
-    ></div>
-
-    <!-- =========================================
-         TỔNG QUAN
-    ========================================== -->
-    <section class="section active" id="page-dashboard">
-
-        <div class="hero">
-
-            <div>
-                <h2>Chào mừng đến trang quản trị 👋</h2>
-
-                <p>
-                    Theo dõi nội dung trong kho, quản lý bài quiz
-                    và kiểm soát các thiết bị đã đăng ký trên hệ thống.
-                </p>
-            </div>
-
-            <button class="btn" onclick="loadAll()">
-                <i class="fa-solid fa-rotate"></i>
-                Đồng bộ dữ liệu
-            </button>
-
-        </div>
-
-        <!-- THỐNG KÊ -->
-        <div class="stats">
-
-            <div class="stat">
-                <div class="stat-head">
-                    Tổng tài liệu
-
-                    <span class="stat-icon">
-                        <i class="fa-regular fa-folder-open"></i>
-                    </span>
+        <!-- SIDEBAR -->
+        <aside id="sidebar" class="sidebar">
+            <div class="sidebar-brand">
+                <div class="brand-logo">
+                    <i class="fa-solid fa-layer-group"></i>
                 </div>
 
-                <div class="stat-number" id="statFiles">—</div>
-
-                <div class="stat-foot">
-                    Số tài liệu được API trả về
+                <div class="brand-text">
+                    <h1>Kho quản trị</h1>
+                    <span>ADMIN DASHBOARD</span>
                 </div>
+
+                <button
+                    class="sidebar-close"
+                    type="button"
+                    aria-label="Đóng menu"
+                    onclick="toggleSidebar(false)"
+                >
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
             </div>
 
-            <div class="stat">
-                <div class="stat-head">
-                    Tổng bài Quiz
+            <div class="sidebar-content">
+                <div class="nav-label">TỔNG QUAN</div>
 
-                    <span class="stat-icon">
+                <nav class="sidebar-nav">
+                    <button
+                        class="nav-item active"
+                        type="button"
+                        data-page="dashboard"
+                        onclick="navigate('dashboard')"
+                    >
+                        <i class="fa-solid fa-chart-pie"></i>
+                        <span>Tổng quan</span>
+                    </button>
+                </nav>
+
+                <div class="nav-label">QUẢN LÝ DỮ LIỆU</div>
+
+                <nav class="sidebar-nav">
+                    <button
+                        class="nav-item"
+                        type="button"
+                        data-page="files"
+                        onclick="navigate('files')"
+                    >
+                        <i class="fa-solid fa-folder-open"></i>
+                        <span>Tài liệu</span>
+                        <span class="nav-arrow">
+                            <i class="fa-solid fa-chevron-right"></i>
+                        </span>
+                    </button>
+
+                    <button
+                        class="nav-item"
+                        type="button"
+                        data-page="quizzes"
+                        onclick="navigate('quizzes')"
+                    >
                         <i class="fa-solid fa-graduation-cap"></i>
-                    </span>
-                </div>
+                        <span>Kho Quiz</span>
+                        <span class="nav-arrow">
+                            <i class="fa-solid fa-chevron-right"></i>
+                        </span>
+                    </button>
 
-                <div class="stat-number" id="statQuizzes">—</div>
-
-                <div class="stat-foot">
-                    Số bài quiz được API trả về
-                </div>
-            </div>
-
-            <div class="stat">
-                <div class="stat-head">
-                    Thiết bị hoạt động
-
-                    <span class="stat-icon">
-                        <i class="fa-solid fa-laptop"></i>
-                    </span>
-                </div>
-
-                <div class="stat-number" id="statActive">—</div>
-
-                <div class="stat-foot">
-                    Thiết bị có trạng thái active
-                </div>
-            </div>
-
-            <div class="stat">
-                <div class="stat-head">
-                    Thiết bị bị khóa
-
-                    <span class="stat-icon">
-                        <i class="fa-solid fa-lock"></i>
-                    </span>
-                </div>
-
-                <div class="stat-number" id="statLocked">—</div>
-
-                <div class="stat-foot">
-                    Thiết bị có trạng thái locked
-                </div>
-            </div>
-
-        </div>
-
-        <!-- HOẠT ĐỘNG GẦN ĐÂY -->
-        <div class="panel">
-
-            <div class="panel-head">
-
-                <div>
-                    <h3>Hoạt động thiết bị gần đây</h3>
-
-                    <p>
-                        Các sự kiện mới nhất được ghi nhận từ API
-                    </p>
-                </div>
-
-                <button class="btn" onclick="navigate('devices')">
-                    Quản lý thiết bị
-                    <i class="fa-solid fa-arrow-right"></i>
-                </button>
-
-            </div>
-
-            <div class="table-wrap">
-
-                <table>
-                    <thead>
-                        <tr>
-                            <th>THIẾT BỊ</th>
-                            <th>IP</th>
-                            <th>SỰ KIỆN GẦN NHẤT</th>
-                            <th>TRẠNG THÁI</th>
-                            <th>LẦN CUỐI</th>
-                        </tr>
-                    </thead>
-
-                    <tbody id="recentBody"></tbody>
-                </table>
-
-            </div>
-
-        </div>
-
-        <!-- TRUY CẬP NHANH -->
-        <div class="two-col">
-
-            <div class="panel quick-card">
-
-                <h3>
-                    <i
-                        class="fa-regular fa-folder-open"
-                        style="color:var(--primary);margin-right:7px"
-                    ></i>
-                    Quản lý kho tài liệu
-                </h3>
-
-                <p>
-                    Xem danh sách tài liệu được trả về từ API,
-                    tìm kiếm theo tên và kiểm tra trạng thái.
-                </p>
-
-                <button class="btn" onclick="navigate('files')">
-                    Mở kho tài liệu
-                    <i class="fa-solid fa-arrow-right"></i>
-                </button>
-
-            </div>
-
-            <div class="panel quick-card">
-
-                <h3>
-                    <i
-                        class="fa-solid fa-graduation-cap"
-                        style="color:var(--primary);margin-right:7px"
-                    ></i>
-                    Quản lý kho Quiz
-                </h3>
-
-                <p>
-                    Xem mã quiz, tên bài, trạng thái
-                    và thời gian mở hoặc đóng bài.
-                </p>
-
-                <button class="btn" onclick="navigate('quizzes')">
-                    Mở kho Quiz
-                    <i class="fa-solid fa-arrow-right"></i>
-                </button>
-
-            </div>
-
-        </div>
-
-    </section>
-
-    <!-- =========================================
-         KHO TÀI LIỆU
-    ========================================== -->
-    <section class="section" id="page-files">
-
-        <div class="panel">
-
-            <div class="panel-head">
-
-                <div>
-                    <h3>Danh sách tài liệu</h3>
-
-                    <p>
-                        Dữ liệu được tải từ API quản trị Apps Script.
-                    </p>
-                </div>
-
-                <button
-                    class="btn primary"
-                    onclick="openItemModal('file')"
-                >
-                    <i class="fa-solid fa-circle-plus"></i>
-                    Thêm tài liệu
-                </button>
-
-            </div>
-
-            <div class="toolbar">
-
-                <div class="search">
-                    <i class="fa-solid fa-magnifying-glass"></i>
-
-                    <input
-                        id="fileSearch"
-                        type="search"
-                        placeholder="Tìm theo tên, ID, thư mục..."
-                        oninput="renderFiles()"
+                    <button
+                        class="nav-item"
+                        type="button"
+                        data-page="devices"
+                        onclick="navigate('devices')"
                     >
-                </div>
+                        <i class="fa-solid fa-mobile-screen-button"></i>
+                        <span>Thiết bị</span>
+                        <span class="nav-arrow">
+                            <i class="fa-solid fa-chevron-right"></i>
+                        </span>
+                    </button>
+                </nav>
 
-                <select
-                    id="fileStatus"
-                    aria-label="Lọc trạng thái tài liệu"
-                    onchange="renderFiles()"
-                >
-                    <option value="">Tất cả trạng thái</option>
-                    <option value="active">Đang bật</option>
-                    <option value="inactive">Đang tắt</option>
-                </select>
+                <div class="nav-label">HỆ THỐNG</div>
 
-            </div>
-
-            <div class="table-wrap">
-
-                <table>
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>TÊN TÀI LIỆU</th>
-                            <th>THƯ MỤC / LOẠI</th>
-                            <th>TRẠNG THÁI</th>
-                            <th>THAO TÁC</th>
-                        </tr>
-                    </thead>
-
-                    <tbody id="filesBody"></tbody>
-                </table>
-
-            </div>
-
-            <div class="table-foot">
-                <span id="filesCount">0 tài liệu</span>
-                <span>Thao tác phụ thuộc vào API quản trị được triển khai.</span>
-            </div>
-
-        </div>
-
-    </section>
-
-    <!-- =========================================
-         KHO QUIZ
-    ========================================== -->
-    <section class="section" id="page-quizzes">
-
-        <div class="panel">
-
-            <div class="panel-head">
-
-                <div>
-                    <h3>Danh sách bài Quiz</h3>
-
-                    <p>
-                        Quản lý mã tham gia, trạng thái
-                        và lịch hoạt động của quiz.
-                    </p>
-                </div>
-
-                <button
-                    class="btn primary"
-                    onclick="openItemModal('quiz')"
-                >
-                    <i class="fa-solid fa-circle-plus"></i>
-                    Thêm Quiz
-                </button>
-
-            </div>
-
-            <div class="toolbar">
-
-                <div class="search">
-                    <i class="fa-solid fa-magnifying-glass"></i>
-
-                    <input
-                        id="quizSearch"
-                        type="search"
-                        placeholder="Tìm tên quiz, mã tham gia..."
-                        oninput="renderQuizzes()"
+                <nav class="sidebar-nav">
+                    <button
+                        class="nav-item"
+                        type="button"
+                        data-page="settings"
+                        onclick="navigate('settings')"
                     >
+                        <i class="fa-solid fa-gear"></i>
+                        <span>Cài đặt API</span>
+                    </button>
+                </nav>
+            </div>
+
+            <div class="sidebar-footer">
+                <div class="admin-avatar">
+                    <i class="fa-solid fa-user-shield"></i>
                 </div>
 
-                <select
-                    id="quizStatus"
-                    aria-label="Lọc trạng thái quiz"
-                    onchange="renderQuizzes()"
-                >
-                    <option value="">Tất cả trạng thái</option>
-                    <option value="open">Đang mở</option>
-                    <option value="upcoming">Chưa mở</option>
-                    <option value="closed">Đã đóng</option>
-                </select>
-
-            </div>
-
-            <div class="table-wrap">
-
-                <table>
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>TÊN QUIZ</th>
-                            <th>MÃ THAM GIA</th>
-                            <th>TRẠNG THÁI</th>
-                            <th>THỜI GIAN</th>
-                            <th>THAO TÁC</th>
-                        </tr>
-                    </thead>
-
-                    <tbody id="quizzesBody"></tbody>
-                </table>
-
-            </div>
-
-            <div class="table-foot">
-                <span id="quizzesCount">0 bài quiz</span>
-                <span>Thao tác phụ thuộc vào API quản trị được triển khai.</span>
-            </div>
-
-        </div>
-
-    </section>
-
-    <!-- =========================================
-         THIẾT BỊ
-    ========================================== -->
-    <section class="section" id="page-devices">
-
-        <div class="panel">
-
-            <div class="panel-head">
-
-                <div>
-                    <h3>Quản lý thiết bị</h3>
-
-                    <p>
-                        Theo dõi deviceId, IP, lịch sử truy cập
-                        và trạng thái khóa.
-                    </p>
+                <div class="admin-info">
+                    <strong>Quản trị viên</strong>
+                    <span>Admin Panel</span>
                 </div>
 
-                <button class="btn" onclick="loadDevices()">
-                    <i class="fa-solid fa-rotate"></i>
-                    Tải lại
-                </button>
-
-            </div>
-
-            <div class="toolbar">
-
-                <div class="search">
-                    <i class="fa-solid fa-magnifying-glass"></i>
-
-                    <input
-                        id="deviceSearch"
-                        type="search"
-                        placeholder="Tìm deviceId, IP, sự kiện..."
-                        oninput="renderDevices()"
-                    >
-                </div>
-
-                <select
-                    id="deviceStatus"
-                    aria-label="Lọc trạng thái thiết bị"
-                    onchange="renderDevices()"
-                >
-                    <option value="">Tất cả trạng thái</option>
-                    <option value="active">Active</option>
-                    <option value="locked">Locked</option>
-                    <option value="expired">Expired</option>
-                </select>
-
-            </div>
-
-            <div class="table-wrap">
-
-                <table>
-                    <thead>
-                        <tr>
-                            <th>DEVICE ID</th>
-                            <th>ĐỊA CHỈ IP</th>
-                            <th>TRẠNG THÁI</th>
-                            <th>SỰ KIỆN</th>
-                            <th>LẦN CUỐI</th>
-                            <th>LỊCH SỬ IP</th>
-                            <th>THAO TÁC</th>
-                        </tr>
-                    </thead>
-
-                    <tbody id="devicesBody"></tbody>
-                </table>
-
-            </div>
-
-            <div class="table-foot">
-                <span id="devicesCount">0 thiết bị</span>
-
-                <span>
-                    Token thiết bị không được hiển thị trong bảng.
+                <span class="admin-online" title="Giao diện quản trị">
+                    <i class="fa-solid fa-circle"></i>
                 </span>
             </div>
+        </aside>
 
-        </div>
+        <!-- MAIN -->
+        <main class="main-content">
 
-    </section>
+            <!-- TOPBAR -->
+            <header class="topbar">
+                <div class="topbar-left">
+                    <button
+                        class="menu-toggle"
+                        type="button"
+                        aria-label="Mở menu"
+                        onclick="toggleSidebar(true)"
+                    >
+                        <i class="fa-solid fa-bars"></i>
+                    </button>
 
-    <!-- =========================================
-         CẤU HÌNH API
-    ========================================== -->
-    <section class="section" id="page-settings">
-
-        <div class="panel">
-
-            <div class="panel-head">
-                <div>
-                    <h3>Cấu hình kết nối</h3>
-
-                    <p>
-                        Cấu hình Worker và Apps Script sử dụng
-                        cho trang quản trị.
-                    </p>
+                    <div class="page-heading">
+                        <span class="page-eyebrow">WORKSPACE / ADMIN</span>
+                        <h2 id="pageTitle">Tổng quan</h2>
+                    </div>
                 </div>
+
+                <div class="topbar-right">
+                    <div class="connection-status">
+                        <span class="status-dot"></span>
+                        <span id="connectionText">Đang kiểm tra kết nối...</span>
+                    </div>
+
+                    <button
+                        class="icon-button"
+                        type="button"
+                        title="Làm mới dữ liệu"
+                        aria-label="Làm mới dữ liệu"
+                        onclick="refreshCurrent()"
+                    >
+                        <i class="fa-solid fa-arrows-rotate"></i>
+                    </button>
+                </div>
+            </header>
+
+            <!-- CONTENT -->
+            <div class="content-wrapper">
+
+                <!-- DASHBOARD -->
+                <section class="page-section active" id="page-dashboard">
+                    <div class="welcome-section">
+                        <div class="welcome-copy">
+                            <div class="welcome-label">
+                                <i class="fa-solid fa-sparkles"></i>
+                                ADMIN WORKSPACE
+                            </div>
+
+                            <h2>Xin chào, quản trị viên!</h2>
+
+                            <p>
+                                Quản lý tài liệu, bộ câu hỏi và thiết bị
+                                truy cập của hệ thống tại một nơi.
+                            </p>
+                        </div>
+
+                        <div class="welcome-illustration">
+                            <div class="illustration-circle">
+                                <i class="fa-solid fa-layer-group"></i>
+                            </div>
+                            <span class="illustration-star star-one">✦</span>
+                            <span class="illustration-star star-two">✧</span>
+                        </div>
+                    </div>
+
+                    <div class="section-heading">
+                        <div>
+                            <h3>Thống kê hệ thống</h3>
+                            <p>Tổng hợp dữ liệu quản trị hiện tại</p>
+                        </div>
+
+                        <button
+                            class="btn btn-secondary"
+                            type="button"
+                            onclick="loadAll()"
+                        >
+                            <i class="fa-solid fa-rotate"></i>
+                            Làm mới
+                        </button>
+                    </div>
+
+                    <div class="stats-grid">
+                        <article class="stat-card stat-files">
+                            <div class="stat-top">
+                                <div class="stat-icon">
+                                    <i class="fa-solid fa-folder-open"></i>
+                                </div>
+                                <span class="stat-caption">TÀI LIỆU</span>
+                            </div>
+
+                            <div class="stat-value" id="statFiles">—</div>
+                            <div class="stat-label">Tổng số tài liệu</div>
+
+                            <button
+                                class="stat-link"
+                                type="button"
+                                onclick="navigate('files')"
+                            >
+                                Quản lý tài liệu
+                                <i class="fa-solid fa-arrow-right"></i>
+                            </button>
+                        </article>
+
+                        <article class="stat-card stat-quizzes">
+                            <div class="stat-top">
+                                <div class="stat-icon">
+                                    <i class="fa-solid fa-graduation-cap"></i>
+                                </div>
+                                <span class="stat-caption">HỌC TẬP</span>
+                            </div>
+
+                            <div class="stat-value" id="statQuizzes">—</div>
+                            <div class="stat-label">Tổng số bài Quiz</div>
+
+                            <button
+                                class="stat-link"
+                                type="button"
+                                onclick="navigate('quizzes')"
+                            >
+                                Quản lý Quiz
+                                <i class="fa-solid fa-arrow-right"></i>
+                            </button>
+                        </article>
+
+                        <article class="stat-card stat-active">
+                            <div class="stat-top">
+                                <div class="stat-icon">
+                                    <i class="fa-solid fa-shield-halved"></i>
+                                </div>
+                                <span class="stat-caption">TRUY CẬP</span>
+                            </div>
+
+                            <div class="stat-value" id="statActive">—</div>
+                            <div class="stat-label">Thiết bị hoạt động</div>
+
+                            <button
+                                class="stat-link"
+                                type="button"
+                                onclick="navigate('devices')"
+                            >
+                                Xem thiết bị
+                                <i class="fa-solid fa-arrow-right"></i>
+                            </button>
+                        </article>
+
+                        <article class="stat-card stat-locked">
+                            <div class="stat-top">
+                                <div class="stat-icon">
+                                    <i class="fa-solid fa-lock"></i>
+                                </div>
+                                <span class="stat-caption">BẢO MẬT</span>
+                            </div>
+
+                            <div class="stat-value" id="statLocked">—</div>
+                            <div class="stat-label">Thiết bị bị khóa</div>
+
+                            <button
+                                class="stat-link"
+                                type="button"
+                                onclick="navigate('devices')"
+                            >
+                                Kiểm tra thiết bị
+                                <i class="fa-solid fa-arrow-right"></i>
+                            </button>
+                        </article>
+                    </div>
+
+                    <div class="dashboard-grid">
+                        <section class="panel recent-panel">
+                            <div class="panel-header">
+                                <div>
+                                    <h3>Dữ liệu gần đây</h3>
+                                    <p>Thông tin mới nhất từ hệ thống</p>
+                                </div>
+
+                                <button
+                                    class="btn btn-light btn-sm"
+                                    type="button"
+                                    onclick="loadAll()"
+                                >
+                                    <i class="fa-solid fa-rotate"></i>
+                                    Cập nhật
+                                </button>
+                            </div>
+
+                            <div class="table-container">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Tên</th>
+                                            <th>Loại</th>
+                                            <th>Thông tin</th>
+                                        </tr>
+                                    </thead>
+
+                                    <tbody id="recentBody">
+                                        <tr>
+                                            <td colspan="3" class="empty-cell">
+                                                <div class="loading-indicator">
+                                                    <i class="fa-solid fa-spinner fa-spin"></i>
+                                                    Đang tải dữ liệu...
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </section>
+
+                        <section class="panel quick-panel">
+                            <div class="panel-header">
+                                <div>
+                                    <h3>Truy cập nhanh</h3>
+                                    <p>Các chức năng quản trị</p>
+                                </div>
+                            </div>
+
+                            <div class="quick-actions">
+                                <button
+                                    class="quick-action"
+                                    type="button"
+                                    onclick="navigate('files')"
+                                >
+                                    <span class="quick-action-icon purple">
+                                        <i class="fa-solid fa-folder-plus"></i>
+                                    </span>
+                                    <span class="quick-action-text">
+                                        <strong>Tài liệu</strong>
+                                        <small>Quản lý kho tài liệu</small>
+                                    </span>
+                                    <i class="fa-solid fa-chevron-right quick-arrow"></i>
+                                </button>
+
+                                <button
+                                    class="quick-action"
+                                    type="button"
+                                    onclick="navigate('quizzes')"
+                                >
+                                    <span class="quick-action-icon orange">
+                                        <i class="fa-solid fa-square-plus"></i>
+                                    </span>
+                                    <span class="quick-action-text">
+                                        <strong>Kho Quiz</strong>
+                                        <small>Quản lý bài kiểm tra</small>
+                                    </span>
+                                    <i class="fa-solid fa-chevron-right quick-arrow"></i>
+                                </button>
+
+                                <button
+                                    class="quick-action"
+                                    type="button"
+                                    onclick="navigate('devices')"
+                                >
+                                    <span class="quick-action-icon green">
+                                        <i class="fa-solid fa-mobile-screen"></i>
+                                    </span>
+                                    <span class="quick-action-text">
+                                        <strong>Thiết bị</strong>
+                                        <small>Kiểm tra quyền truy cập</small>
+                                    </span>
+                                    <i class="fa-solid fa-chevron-right quick-arrow"></i>
+                                </button>
+
+                                <button
+                                    class="quick-action"
+                                    type="button"
+                                    onclick="navigate('settings')"
+                                >
+                                    <span class="quick-action-icon blue">
+                                        <i class="fa-solid fa-sliders"></i>
+                                    </span>
+                                    <span class="quick-action-text">
+                                        <strong>Cài đặt API</strong>
+                                        <small>Cấu hình kết nối hệ thống</small>
+                                    </span>
+                                    <i class="fa-solid fa-chevron-right quick-arrow"></i>
+                                </button>
+                            </div>
+                        </section>
+                    </div>
+                </section>
+
+                <!-- FILES -->
+                <section class="page-section" id="page-files">
+                    <div class="page-intro">
+                        <div>
+                            <div class="breadcrumb">
+                                <span>Quản lý</span>
+                                <i class="fa-solid fa-chevron-right"></i>
+                                <strong>Tài liệu</strong>
+                            </div>
+
+                            <h2>Quản lý tài liệu</h2>
+                            <p>Xem và quản lý danh sách tài liệu trong hệ thống.</p>
+                        </div>
+
+                        <button
+                            class="btn btn-primary"
+                            type="button"
+                            onclick="openItemModal('file')"
+                        >
+                            <i class="fa-solid fa-plus"></i>
+                            Thêm tài liệu
+                        </button>
+                    </div>
+
+                    <div class="toolbar panel">
+                        <div class="search-box">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                            <input
+                                id="fileSearch"
+                                type="search"
+                                placeholder="Tìm theo tên, ID hoặc thông tin..."
+                                autocomplete="off"
+                            >
+                        </div>
+
+                        <div class="toolbar-right">
+                            <select id="fileStatus" aria-label="Lọc trạng thái tài liệu">
+                                <option value="">Tất cả trạng thái</option>
+                                <option value="active">Đang hoạt động</option>
+                                <option value="inactive">Không hoạt động</option>
+                            </select>
+
+                            <button
+                                class="btn btn-secondary"
+                                type="button"
+                                onclick="refreshCurrent()"
+                            >
+                                <i class="fa-solid fa-rotate"></i>
+                                Làm mới
+                            </button>
+                        </div>
+                    </div>
+
+                    <section class="panel table-panel">
+                        <div class="panel-header">
+                            <div>
+                                <h3>Danh sách tài liệu</h3>
+                                <p>Quản lý thông tin và dữ liệu tài liệu</p>
+                            </div>
+
+                            <div class="table-count">
+                                Tổng cộng <strong id="filesCount">0</strong> mục
+                            </div>
+                        </div>
+
+                        <div class="table-container">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Thông tin tài liệu</th>
+                                        <th>ID</th>
+                                        <th>Danh mục</th>
+                                        <th>Trạng thái</th>
+                                        <th>Thao tác</th>
+                                    </tr>
+                                </thead>
+
+                                <tbody id="filesBody">
+                                    <tr>
+                                        <td colspan="5" class="empty-cell">
+                                            <i class="fa-solid fa-spinner fa-spin"></i>
+                                            Đang tải dữ liệu...
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="table-footer">
+                            <span>Danh sách tài liệu của hệ thống</span>
+                        </div>
+                    </section>
+                </section>
+
+                <!-- QUIZZES -->
+                <section class="page-section" id="page-quizzes">
+                    <div class="page-intro">
+                        <div>
+                            <div class="breadcrumb">
+                                <span>Quản lý</span>
+                                <i class="fa-solid fa-chevron-right"></i>
+                                <strong>Kho Quiz</strong>
+                            </div>
+
+                            <h2>Quản lý Quiz</h2>
+                            <p>Quản lý các bài kiểm tra và thông tin truy cập.</p>
+                        </div>
+
+                        <button
+                            class="btn btn-primary"
+                            type="button"
+                            onclick="openItemModal('quiz')"
+                        >
+                            <i class="fa-solid fa-plus"></i>
+                            Thêm Quiz
+                        </button>
+                    </div>
+
+                    <div class="toolbar panel">
+                        <div class="search-box">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                            <input
+                                id="quizSearch"
+                                type="search"
+                                placeholder="Tìm tên Quiz, mã tham gia hoặc ID..."
+                                autocomplete="off"
+                            >
+                        </div>
+
+                        <div class="toolbar-right">
+                            <select id="quizStatus" aria-label="Lọc trạng thái Quiz">
+                                <option value="">Tất cả trạng thái</option>
+                                <option value="active">Đang mở</option>
+                                <option value="upcoming">Chưa mở</option>
+                                <option value="closed">Đã đóng</option>
+                            </select>
+
+                            <button
+                                class="btn btn-secondary"
+                                type="button"
+                                onclick="refreshCurrent()"
+                            >
+                                <i class="fa-solid fa-rotate"></i>
+                                Làm mới
+                            </button>
+                        </div>
+                    </div>
+
+                    <section class="panel table-panel">
+                        <div class="panel-header">
+                            <div>
+                                <h3>Danh sách Quiz</h3>
+                                <p>Thông tin các bài kiểm tra đang được quản lý</p>
+                            </div>
+
+                            <div class="table-count">
+                                Tổng cộng <strong id="quizzesCount">0</strong> mục
+                            </div>
+                        </div>
+
+                        <div class="table-container">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Thông tin Quiz</th>
+                                        <th>Mã tham gia</th>
+                                        <th>Số câu hỏi</th>
+                                        <th>Trạng thái</th>
+                                        <th>Thao tác</th>
+                                    </tr>
+                                </thead>
+
+                                <tbody id="quizzesBody">
+                                    <tr>
+                                        <td colspan="5" class="empty-cell">
+                                            <i class="fa-solid fa-spinner fa-spin"></i>
+                                            Đang tải dữ liệu...
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="table-footer">
+                            <span>Danh sách bài kiểm tra của hệ thống</span>
+                        </div>
+                    </section>
+                </section>
+
+                <!-- DEVICES -->
+                <section class="page-section" id="page-devices">
+                    <div class="page-intro">
+                        <div>
+                            <div class="breadcrumb">
+                                <span>Quản lý</span>
+                                <i class="fa-solid fa-chevron-right"></i>
+                                <strong>Thiết bị</strong>
+                            </div>
+
+                            <h2>Quản lý thiết bị</h2>
+                            <p>Kiểm tra thiết bị đăng ký, trạng thái và quyền truy cập.</p>
+                        </div>
+
+                        <button
+                            class="btn btn-secondary"
+                            type="button"
+                            onclick="loadDevices()"
+                        >
+                            <i class="fa-solid fa-rotate"></i>
+                            Tải lại thiết bị
+                        </button>
+                    </div>
+
+                    <div class="device-notice">
+                        <div class="device-notice-icon">
+                            <i class="fa-solid fa-shield-halved"></i>
+                        </div>
+
+                        <div>
+                            <strong>Quản lý quyền truy cập</strong>
+                            <p>
+                                Kiểm tra trạng thái thiết bị trước khi thực hiện
+                                thao tác khóa hoặc mở khóa.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="toolbar panel">
+                        <div class="search-box">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                            <input
+                                id="deviceSearch"
+                                type="search"
+                                placeholder="Tìm device ID, IP hoặc trạng thái..."
+                                autocomplete="off"
+                            >
+                        </div>
+
+                        <div class="toolbar-right">
+                            <select id="deviceStatus" aria-label="Lọc trạng thái thiết bị">
+                                <option value="">Tất cả thiết bị</option>
+                                <option value="active">Đang hoạt động</option>
+                                <option value="locked">Đã khóa</option>
+                                <option value="expired">Hết hạn</option>
+                            </select>
+
+                            <button
+                                class="btn btn-secondary"
+                                type="button"
+                                onclick="loadDevices()"
+                            >
+                                <i class="fa-solid fa-rotate"></i>
+                                Làm mới
+                            </button>
+                        </div>
+                    </div>
+
+                    <section class="panel table-panel">
+                        <div class="panel-header">
+                            <div>
+                                <h3>Danh sách thiết bị</h3>
+                                <p>Thông tin thiết bị và lịch sử truy cập</p>
+                            </div>
+
+                            <div class="table-count">
+                                Tổng cộng <strong id="devicesCount">0</strong> mục
+                            </div>
+                        </div>
+
+                        <div class="table-container">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Thiết bị</th>
+                                        <th>Địa chỉ IP</th>
+                                        <th>Trạng thái</th>
+                                        <th>Lần hoạt động gần nhất</th>
+                                        <th>Thao tác</th>
+                                    </tr>
+                                </thead>
+
+                                <tbody id="devicesBody">
+                                    <tr>
+                                        <td colspan="5" class="empty-cell">
+                                            <i class="fa-solid fa-spinner fa-spin"></i>
+                                            Đang tải dữ liệu...
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="table-footer">
+                            <span>Thông tin thiết bị được lấy từ API quản trị</span>
+                        </div>
+                    </section>
+                </section>
+
+                <!-- SETTINGS -->
+                <section class="page-section" id="page-settings">
+                    <div class="page-intro">
+                        <div>
+                            <div class="breadcrumb">
+                                <span>Hệ thống</span>
+                                <i class="fa-solid fa-chevron-right"></i>
+                                <strong>Cài đặt API</strong>
+                            </div>
+
+                            <h2>Cài đặt hệ thống</h2>
+                            <p>Cấu hình các địa chỉ API phục vụ trang quản trị.</p>
+                        </div>
+                    </div>
+
+                    <div class="settings-layout">
+                        <section class="panel settings-panel">
+                            <div class="panel-header">
+                                <div class="settings-heading-icon">
+                                    <i class="fa-solid fa-plug"></i>
+                                </div>
+
+                                <div>
+                                    <h3>Cấu hình kết nối</h3>
+                                    <p>Thiết lập địa chỉ Worker và Apps Script.</p>
+                                </div>
+                            </div>
+
+                            <div class="settings-form">
+                                <div class="form-group">
+                                    <label for="workerUrl">
+                                        Worker URL
+                                        <span class="required-mark">*</span>
+                                    </label>
+
+                                    <div class="input-with-icon">
+                                        <i class="fa-solid fa-cloud"></i>
+                                        <input
+                                            id="workerUrl"
+                                            type="url"
+                                            placeholder="https://your-worker.workers.dev"
+                                            autocomplete="url"
+                                        >
+                                    </div>
+
+                                    <small>
+                                        Địa chỉ Worker xử lý các yêu cầu từ trang quản trị.
+                                    </small>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="gasUrl">
+                                        Google Apps Script URL
+                                    </label>
+
+                                    <div class="input-with-icon">
+                                        <i class="fa-brands fa-google"></i>
+                                        <input
+                                            id="gasUrl"
+                                            type="url"
+                                            placeholder="https://script.google.com/macros/s/..."
+                                            autocomplete="url"
+                                        >
+                                    </div>
+
+                                    <small>
+                                        Địa chỉ Web App Apps Script của hệ thống.
+                                    </small>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="adminKey">
+                                        Admin Key
+                                    </label>
+
+                                    <div class="input-with-icon">
+                                        <i class="fa-solid fa-key"></i>
+                                        <input
+                                            id="adminKey"
+                                            type="password"
+                                            placeholder="Nhập khóa quản trị"
+                                            autocomplete="new-password"
+                                        >
+                                        <button
+                                            type="button"
+                                            class="password-toggle"
+                                            aria-label="Hiện hoặc ẩn Admin Key"
+                                            onclick="const i=document.getElementById('adminKey');i.type=i.type==='password'?'text':'password';this.querySelector('i').classList.toggle('fa-eye');this.querySelector('i').classList.toggle('fa-eye-slash');"
+                                        >
+                                            <i class="fa-solid fa-eye"></i>
+                                        </button>
+                                    </div>
+
+                                    <small>
+                                        Khóa xác thực quản trị nếu API của em có sử dụng.
+                                    </small>
+                                </div>
+
+                                <div class="settings-actions">
+                                    <button
+                                        class="btn btn-primary"
+                                        type="button"
+                                        onclick="saveSettings()"
+                                    >
+                                        <i class="fa-solid fa-floppy-disk"></i>
+                                        Lưu cài đặt
+                                    </button>
+
+                                    <button
+                                        class="btn btn-secondary"
+                                        type="button"
+                                        onclick="loadAll()"
+                                    >
+                                        <i class="fa-solid fa-plug-circle-check"></i>
+                                        Kiểm tra dữ liệu
+                                    </button>
+                                </div>
+                            </div>
+                        </section>
+
+                        <aside class="panel settings-info-panel">
+                            <div class="settings-info-icon">
+                                <i class="fa-solid fa-circle-info"></i>
+                            </div>
+
+                            <h3>Lưu ý cấu hình</h3>
+
+                            <ul class="settings-tips">
+                                <li>
+                                    <i class="fa-solid fa-check-circle"></i>
+                                    Kiểm tra URL trước khi lưu.
+                                </li>
+
+                                <li>
+                                    <i class="fa-solid fa-check-circle"></i>
+                                    Worker cần cho phép yêu cầu từ tên miền trang quản trị.
+                                </li>
+
+                                <li>
+                                    <i class="fa-solid fa-check-circle"></i>
+                                    Apps Script cần được triển khai đúng quyền truy cập.
+                                </li>
+
+                                <li>
+                                    <i class="fa-solid fa-triangle-exclamation"></i>
+                                    Không chia sẻ Admin Key cho người không có quyền quản trị.
+                                </li>
+                            </ul>
+                        </aside>
+                    </div>
+                </section>
+
             </div>
 
-            <div class="modal-body">
+            <!-- FOOTER -->
+            <footer class="main-footer">
+                <span>
+                    <i class="fa-solid fa-layer-group"></i>
+                    Kho quản trị
+                </span>
 
-                <div class="field">
-                    <label for="workerUrl">
-                        Worker kho tài liệu
-                    </label>
-
-                    <input
-                        id="workerUrl"
-                        type="url"
-                        placeholder="https://api-tai-lieu.abcd1601ab.workers.dev"
-                        autocomplete="url"
-                    >
-                </div>
-
-                <div class="field">
-                    <label for="gasUrl">
-                        Apps Script Web App URL
-                    </label>
-
-                    <input
-                        id="gasUrl"
-                        type="url"
-                        placeholder="https://script.google.com/macros/s/.../exec"
-                        autocomplete="url"
-                    >
-                </div>
-
-                <div class="field">
-                    <label for="adminKey">
-                        Mã bảo vệ Admin API
-                    </label>
-
-                    <input
-                        id="adminKey"
-                        type="password"
-                        placeholder="Nhập ADMIN_KEY nếu backend yêu cầu"
-                        autocomplete="new-password"
-                    >
-                </div>
-
-                <button
-                    class="btn primary"
-                    onclick="saveSettings()"
-                >
-                    <i class="fa-solid fa-floppy-disk"></i>
-                    Lưu cấu hình
-                </button>
-
-                <button
-                    class="btn"
-                    style="margin-left:7px"
-                    onclick="loadAll()"
-                >
-                    <i class="fa-solid fa-plug"></i>
-                    Kết nối / tải dữ liệu
-                </button>
-
-                <div class="api-note">
-                    <b>Lưu ý bảo mật:</b>
-
-                    Trang này gọi API quản trị từ trình duyệt.
-                    Chỉ sử dụng API có xác thực quản trị ở phía máy chủ.
-                    Không coi việc ẩn nút hoặc đặt trường nhập mật khẩu
-                    trong HTML là biện pháp bảo mật.
-
-                    <br><br>
-
-                    Các thao tác quản trị chỉ hoạt động nếu URL Apps Script
-                    đang sử dụng đã triển khai phiên bản có các action tương ứng,
-                    gồm đọc danh sách tài liệu, Quiz, thiết bị, khóa,
-                    mở khóa, xóa thiết bị và thêm dữ liệu.
-                </div>
-
-            </div>
-
-        </div>
-
-    </section>
-
-</main>
-
-<!-- =========================================
-     HỘP THOẠI
-========================================== -->
-<div
-    class="modal-backdrop"
-    id="modalBackdrop"
-    onclick="if(event.target === this) closeModal()"
->
-    <div
-        class="modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="modalTitle"
-    >
-
-        <div class="modal-head">
-
-            <h3 id="modalTitle">Chi tiết</h3>
-
-            <button
-                class="icon-btn"
-                onclick="closeModal()"
-                aria-label="Đóng hộp thoại"
-            >
-                <i class="fa-solid fa-xmark"></i>
-            </button>
-
-        </div>
-
-        <div class="modal-body" id="modalBody"></div>
-
-        <div class="modal-foot">
-
-            <button class="btn" onclick="closeModal()">
-                Đóng
-            </button>
-
-            <button
-                class="btn primary"
-                id="modalPrimary"
-                onclick="modalAction()"
-            >
-                Xác nhận
-            </button>
-
-        </div>
-
+                <span>Admin Dashboard</span>
+            </footer>
+        </main>
     </div>
-</div>
 
-<script src="app.js"></script>
+    <!-- THÔNG BÁO -->
+    <div id="notice" class="notice" role="status" aria-live="polite">
+        <div class="notice-icon">
+            <i class="fa-solid fa-circle-info"></i>
+        </div>
 
+        <div class="notice-content">
+            <strong class="notice-title">Thông báo</strong>
+            <span class="notice-message"></span>
+        </div>
+
+        <button
+            type="button"
+            class="notice-close"
+            aria-label="Đóng thông báo"
+            onclick="this.closest('#notice').classList.remove('show','active')"
+        >
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+    </div>
+
+    <!-- MODAL -->
+    <div
+        id="modalBackdrop"
+        class="modal-backdrop"
+        aria-hidden="true"
+        onclick="if(event.target===this)closeModal()"
+    >
+        <section
+            class="modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="modalTitle"
+        >
+            <header class="modal-header">
+                <div class="modal-heading">
+                    <div class="modal-heading-icon">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                    </div>
+
+                    <div>
+                        <h3 id="modalTitle">Thông tin</h3>
+                        <p>Chi tiết và thao tác quản trị</p>
+                    </div>
+                </div>
+
+                <button
+                    class="modal-close"
+                    type="button"
+                    aria-label="Đóng hộp thoại"
+                    onclick="closeModal()"
+                >
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </header>
+
+            <div id="modalBody" class="modal-body">
+                <!-- Nội dung modal được app.js tạo -->
+            </div>
+
+            <footer class="modal-footer">
+                <button
+                    class="btn btn-secondary"
+                    type="button"
+                    onclick="closeModal()"
+                >
+                    Đóng
+                </button>
+
+                <button
+                    id="modalPrimary"
+                    class="btn btn-primary"
+                    type="button"
+                    onclick="modalAction()"
+                >
+                    <i class="fa-solid fa-check"></i>
+                    Xác nhận
+                </button>
+            </footer>
+        </section>
+    </div>
+
+    <script src="app.js"></script>
 </body>
 </html>
