@@ -677,7 +677,6 @@ async function loadQuizzes(showToast = false) {
         setRefreshLoading(false);
     }
 }
-
 /* ===================== NORMALIZE API DATA ================ */
 
 function normalizeApiData(result) {
@@ -955,9 +954,85 @@ function filterAndRender() {
             });
     }
 
+    /* Sắp xếp theo thời hạn trước khi hiển thị */
+    state.filteredQuizzes = sortQuizzesByDeadline(
+        state.filteredQuizzes
+    );
+
     renderQuizzes();
     updateCount();
     updateEmptyState();
+}
+
+/* ==================== SORT QUIZ BY DEADLINE ==================== */
+
+/*
+ * Thứ tự hiển thị:
+ * 1. Đang mở: phiên sắp hết hạn trước.
+ * 2. Chưa mở: phiên sắp đến giờ bắt đầu trước.
+ * 3. Đã đóng: phiên vừa hết hạn trước.
+ * 4. Chưa xác định: xếp cuối.
+ *
+ * Chỉ sắp xếp dữ liệu hiển thị, không thay đổi dữ liệu API.
+ */
+
+function sortQuizzesByDeadline(quizzes) {
+    function getSortInfo(quiz) {
+        const status = getQuizStatus(quiz);
+
+        if (status.type === "open") {
+            return {
+                priority: 1,
+                deadline: parseQuizTime(quiz.endTime) ?? Infinity
+            };
+        }
+
+        if (status.type === "upcoming") {
+            return {
+                priority: 2,
+                deadline: parseQuizTime(quiz.startTime) ?? Infinity
+            };
+        }
+
+        if (status.type === "closed") {
+            return {
+                priority: 3,
+
+                /*
+                 * Thời điểm kết thúc càng gần hiện tại
+                 * thì phiên vừa đóng càng được ưu tiên.
+                 */
+                deadline: -(parseQuizTime(quiz.endTime) ?? 0)
+            };
+        }
+
+        return {
+            priority: 4,
+            deadline: Infinity
+        };
+    }
+
+    return quizzes
+        .map(function(quiz, index) {
+            const sortInfo = getSortInfo(quiz);
+
+            return {
+                quiz,
+                index,
+                priority: sortInfo.priority,
+                deadline: sortInfo.deadline
+            };
+        })
+        .sort(function(a, b) {
+            return (
+                a.priority - b.priority ||
+                a.deadline - b.deadline ||
+                a.index - b.index
+            );
+        })
+        .map(function(item) {
+            return item.quiz;
+        });
 }
 
 /* ============================ RENDER ===================== */
@@ -1161,7 +1236,6 @@ function openQuiz(code) {
         // Không ảnh hưởng đến việc mở phiên Quiz.
     }
 }
-
 /* ========================== VIEW MODE ==================== */
 
 function loadSavedViewMode() {
@@ -1502,8 +1576,11 @@ function handleKeyboard(event) {
 /*
  * Cập nhật trạng thái mỗi giây.
  * Không gọi API mỗi giây.
- * Khi vượt qua endTime, thẻ Quiz sẽ được render lại
- * với trạng thái "Đã đóng" và nút chơi bị khóa.
+ *
+ * Khi thời gian thay đổi:
+ * - Cập nhật trạng thái mở/đóng của từng Quiz.
+ * - Tự động sắp xếp lại theo thời hạn.
+ * - Khóa nút chơi khi phiên Quiz đã hết giờ.
  */
 
 setInterval(function() {
