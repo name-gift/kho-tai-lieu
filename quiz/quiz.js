@@ -2,8 +2,8 @@
 
 /* ======================== CONFIG ======================== */
 const CONFIG = {
-    API_BASE: "/quiz",
-    API_URL: "/quiz/list",
+    API_BASE: "/quiz/api",
+    API_URL: "/quiz/api/list",
     API_TIMEOUT: 20000,
     STORAGE_VIEW: "quiz_view_mode_v1",
     STORAGE_DEVICE_ID: "kho_tai_lieu_device_id_v1",
