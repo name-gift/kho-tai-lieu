@@ -1,9 +1,9 @@
 "use strict";
 
 /* ======================== CONFIG ======================== */
-
 const CONFIG = {
-    API_URL: "https://api-quiz.abcd1601ab.workers.dev/list",
+    API_BASE: "/quiz",
+    API_URL: "/quiz/list",
     API_TIMEOUT: 20000,
     STORAGE_VIEW: "quiz_view_mode_v1",
     STORAGE_DEVICE_ID: "kho_tai_lieu_device_id_v1",
@@ -11,7 +11,6 @@ const CONFIG = {
 };
 
 /* ======================== STATE ========================= */
-
 const state = {
     quizzes: [],
     filteredQuizzes: [],
@@ -36,10 +35,8 @@ const state = {
 function getDeviceCredentials() {
     try {
         return {
-            deviceId:
-                localStorage.getItem(CONFIG.STORAGE_DEVICE_ID) || "",
-            deviceToken:
-                localStorage.getItem(CONFIG.STORAGE_DEVICE_TOKEN) || ""
+            deviceId: localStorage.getItem(CONFIG.STORAGE_DEVICE_ID) || "",
+            deviceToken: localStorage.getItem(CONFIG.STORAGE_DEVICE_TOKEN) || ""
         };
     } catch (error) {
         console.error("Không thể đọc thông tin thiết bị:", error);
@@ -81,7 +78,6 @@ function createApiError(message, code = "") {
     const error = new Error(
         message || "Đã xảy ra lỗi khi gọi API."
     );
-
     error.code = code;
     return error;
 }
@@ -89,22 +85,14 @@ function createApiError(message, code = "") {
 async function ensureDeviceRegistered(signal) {
     const credentials = getDeviceCredentials();
 
-    let deviceId = String(
-        credentials.deviceId || ""
-    ).trim();
-
-    let deviceToken = String(
-        credentials.deviceToken || ""
-    ).trim();
+    let deviceId = String(credentials.deviceId || "").trim();
+    let deviceToken = String(credentials.deviceToken || "").trim();
 
     if (!deviceId) {
         deviceId = createDeviceId();
 
         try {
-            localStorage.setItem(
-                CONFIG.STORAGE_DEVICE_ID,
-                deviceId
-            );
+            localStorage.setItem(CONFIG.STORAGE_DEVICE_ID, deviceId);
         } catch (error) {
             throw createApiError(
                 "Trình duyệt không cho phép lưu thông tin thiết bị."
@@ -112,10 +100,13 @@ async function ensureDeviceRegistered(signal) {
         }
     }
 
-    const workerBase = new URL(CONFIG.API_URL).origin;
+    const apiBase = new URL(CONFIG.API_BASE, window.location.origin);
 
     async function callWorker(path, params = {}) {
-        const url = new URL(path, workerBase);
+        const url = new URL(
+            String(path).replace(/^\/+/, ""),
+            apiBase.toString().replace(/\/$/, "") + "/"
+        );
 
         url.searchParams.set("deviceId", deviceId);
 
@@ -123,14 +114,8 @@ async function ensureDeviceRegistered(signal) {
             .replace(/\/+$/, "")
             .toLowerCase();
 
-        if (
-            normalizedPath !== "/check" &&
-            deviceToken
-        ) {
-            url.searchParams.set(
-                "deviceToken",
-                deviceToken
-            );
+        if (normalizedPath !== "/check" && deviceToken) {
+            url.searchParams.set("deviceToken", deviceToken);
         }
 
         Object.entries(params).forEach(function([key, value]) {
@@ -139,17 +124,11 @@ async function ensureDeviceRegistered(signal) {
                 value !== null &&
                 value !== ""
             ) {
-                url.searchParams.set(
-                    key,
-                    String(value)
-                );
+                url.searchParams.set(key, String(value));
             }
         });
 
-        url.searchParams.set(
-            "_refresh",
-            Date.now().toString()
-        );
+        url.searchParams.set("_refresh", Date.now().toString());
 
         const headers = {
             "Accept": "application/json"
@@ -222,7 +201,6 @@ async function ensureDeviceRegistered(signal) {
                 CONFIG.STORAGE_DEVICE_TOKEN,
                 newToken
             );
-
             deviceToken = newToken;
             return true;
         } catch (error) {
@@ -233,7 +211,6 @@ async function ensureDeviceRegistered(signal) {
     }
 
     /* BƯỚC 1: CHECK - chỉ gửi deviceId */
-
     const check = await callWorker("/check");
 
     if (check.code === "DEVICE_LOCKED") {
@@ -256,8 +233,7 @@ async function ensureDeviceRegistered(signal) {
             checkStatus === "valid"
         );
 
-    const deviceExpired =
-        check.code === "DEVICE_EXPIRED";
+    const deviceExpired = check.code === "DEVICE_EXPIRED";
 
     const deviceNotRegistered = [
         "DEVICE_UNREGISTERED",
@@ -265,7 +241,6 @@ async function ensureDeviceRegistered(signal) {
     ].includes(check.code);
 
     /* BƯỚC 2: RENEW */
-
     if (checkSuccess || deviceExpired) {
         const renew = await callWorker("/renew");
 
@@ -276,9 +251,7 @@ async function ensureDeviceRegistered(signal) {
             );
         }
 
-        const notExpired =
-            renew.code === "DEVICE_NOT_EXPIRED";
-
+        const notExpired = renew.code === "DEVICE_NOT_EXPIRED";
         const renewSuccess =
             renew.response.ok &&
             renew.data?.success === true;
@@ -299,7 +272,6 @@ async function ensureDeviceRegistered(signal) {
     }
 
     /* BƯỚC 3: REGISTER */
-
     if (deviceNotRegistered) {
         const registration = await callWorker("/register");
 
@@ -331,7 +303,6 @@ async function ensureDeviceRegistered(signal) {
                 CONFIG.STORAGE_DEVICE_ID,
                 returnedDeviceId
             );
-
             deviceId = returnedDeviceId;
         } catch (error) {
             throw createApiError(
@@ -354,7 +325,6 @@ async function ensureDeviceRegistered(signal) {
 }
 
 /* ============================ DOM ======================== */
-
 const elements = {};
 
 document.addEventListener("DOMContentLoaded", init);
@@ -415,7 +385,6 @@ function initElements() {
 }
 
 /* ============================ EVENTS ===================== */
-
 function bindEvents() {
     if (elements.refreshButton) {
         elements.refreshButton.addEventListener(
@@ -480,14 +449,10 @@ function bindEvents() {
         );
     }
 
-    window.addEventListener(
-        "keydown",
-        handleKeyboard
-    );
+    window.addEventListener("keydown", handleKeyboard);
 }
 
 /* ======================== LOAD QUIZZES =================== */
-
 async function loadQuizzes(showToast = false) {
     if (state.loading) {
         return;
@@ -523,13 +488,9 @@ async function loadQuizzes(showToast = false) {
         }, CONFIG.API_TIMEOUT);
 
         /* BƯỚC 1: CHECK -> RENEW hoặc REGISTER */
-
-        await ensureDeviceRegistered(
-            controller.signal
-        );
+        await ensureDeviceRegistered(controller.signal);
 
         /* BƯỚC 2: Đọc lại thông tin thiết bị */
-
         const credentials = getDeviceCredentials();
 
         const deviceId = String(
@@ -548,13 +509,12 @@ async function loadQuizzes(showToast = false) {
         }
 
         /* BƯỚC 3: Gọi /list */
-
-        const requestUrl = new URL(CONFIG.API_URL);
-
-        requestUrl.searchParams.set(
-            "deviceId",
-            deviceId
+        const requestUrl = new URL(
+            CONFIG.API_URL,
+            window.location.origin
         );
+
+        requestUrl.searchParams.set("deviceId", deviceId);
 
         if (deviceToken) {
             requestUrl.searchParams.set(
@@ -637,9 +597,7 @@ async function loadQuizzes(showToast = false) {
         }
 
         /* BƯỚC 4: Chuẩn hóa dữ liệu */
-
         const rawQuizzes = normalizeApiData(result);
-
         state.quizzes = normalizeQuizzes(rawQuizzes);
 
         filterAndRender();
@@ -671,14 +629,12 @@ async function loadQuizzes(showToast = false) {
         }
 
         hideLoading();
-
         state.loading = false;
-
         setRefreshLoading(false);
     }
 }
-/* ===================== NORMALIZE API DATA ================ */
 
+/* ===================== NORMALIZE API DATA ================ */
 function normalizeApiData(result) {
     if (Array.isArray(result)) {
         return result;
@@ -714,7 +670,6 @@ function normalizeApiData(result) {
 }
 
 /* ===================== NORMALIZE QUIZZES ================= */
-
 function normalizeQuizzes(quizzes) {
     const normalized = [];
     const usedCodes = new Set();
@@ -773,17 +728,11 @@ function normalizeQuizzes(quizzes) {
 }
 
 /* ====================== QUIZ STATUS ====================== */
-
 function getQuizStatus(quiz) {
     const now = Date.now();
 
-    const startTime = parseQuizTime(
-        quiz.startTime
-    );
-
-    const endTime = parseQuizTime(
-        quiz.endTime
-    );
+    const startTime = parseQuizTime(quiz.startTime);
+    const endTime = parseQuizTime(quiz.endTime);
 
     if (
         startTime === null ||
@@ -828,7 +777,6 @@ function getQuizStatus(quiz) {
 }
 
 /* ====================== PARSE QUIZ TIME ================== */
-
 function parseQuizTime(value) {
     if (
         value === null ||
@@ -884,7 +832,6 @@ function parseQuizTime(value) {
 }
 
 /* ====================== COUNTDOWN ======================== */
-
 function formatCountdown(milliseconds) {
     if (milliseconds <= 0) {
         return "đang bắt đầu...";
@@ -934,24 +881,21 @@ function formatCountdown(milliseconds) {
 }
 
 /* ============================ FILTER ===================== */
-
 function filterAndRender() {
     const keyword = state.searchText;
 
     if (!keyword) {
-        state.filteredQuizzes =
-            state.quizzes.slice();
+        state.filteredQuizzes = state.quizzes.slice();
     } else {
-        state.filteredQuizzes =
-            state.quizzes.filter(function(quiz) {
-                const text = [
-                    quiz.name,
-                    quiz.code,
-                    quiz.description
-                ].join(" ").toLowerCase();
+        state.filteredQuizzes = state.quizzes.filter(function(quiz) {
+            const text = [
+                quiz.name,
+                quiz.code,
+                quiz.description
+            ].join(" ").toLowerCase();
 
-                return text.includes(keyword);
-            });
+            return text.includes(keyword);
+        });
     }
 
     /* Sắp xếp theo thời hạn trước khi hiển thị */
@@ -1036,7 +980,6 @@ function sortQuizzesByDeadline(quizzes) {
 }
 
 /* ============================ RENDER ===================== */
-
 function renderQuizzes() {
     if (!elements.quizContainer) {
         return;
@@ -1048,25 +991,19 @@ function renderQuizzes() {
         return;
     }
 
-    const fragment =
-        document.createDocumentFragment();
+    const fragment = document.createDocumentFragment();
 
     state.filteredQuizzes.forEach(function(quiz) {
-        fragment.appendChild(
-            createQuizCard(quiz)
-        );
+        fragment.appendChild(createQuizCard(quiz));
     });
 
     elements.quizContainer.appendChild(fragment);
-
     applyViewMode();
 }
 
 /* ======================== CREATE CARD ==================== */
-
 function createQuizCard(quiz) {
     const card = document.createElement("article");
-
     card.className = "quiz-card";
     card.dataset.code = quiz.code;
 
@@ -1077,15 +1014,12 @@ function createQuizCard(quiz) {
 
     const icon = document.createElement("div");
     icon.className = "quiz-icon";
-
     icon.innerHTML =
         '<i class="fa-solid fa-graduation-cap"></i>';
 
     const statusBadge = document.createElement("span");
-
     statusBadge.className =
         "quiz-status status-" + status.type;
-
     statusBadge.textContent = status.text;
 
     top.appendChild(icon);
@@ -1102,9 +1036,7 @@ function createQuizCard(quiz) {
     description.className = "quiz-description";
 
     if (status.type === "upcoming") {
-        const startTime = parseQuizTime(
-            quiz.startTime
-        );
+        const startTime = parseQuizTime(quiz.startTime);
 
         description.textContent =
             "Vui lòng quay trở lại sau " +
@@ -1125,11 +1057,8 @@ function createQuizCard(quiz) {
     content.appendChild(description);
 
     if (status.canPlay) {
-        const codeElement =
-            document.createElement("div");
-
+        const codeElement = document.createElement("div");
         codeElement.className = "quiz-code";
-
         codeElement.innerHTML =
             '<i class="fa-solid fa-hashtag"></i> ' +
             'Mã phiên: <strong></strong>';
@@ -1144,7 +1073,6 @@ function createQuizCard(quiz) {
     footer.className = "quiz-card-footer";
 
     const playButton = document.createElement("button");
-
     playButton.type = "button";
     playButton.className = "play-button";
 
@@ -1161,8 +1089,7 @@ function createQuizCard(quiz) {
                  * không chỉ dựa vào trạng thái lúc render.
                  */
 
-                const currentStatus =
-                    getQuizStatus(quiz);
+                const currentStatus = getQuizStatus(quiz);
 
                 if (!currentStatus.canPlay) {
                     showToastMessage(
@@ -1183,7 +1110,6 @@ function createQuizCard(quiz) {
     } else {
         playButton.disabled = true;
         playButton.classList.add("disabled");
-
         playButton.innerHTML =
             '<i class="fa-solid fa-lock"></i>' +
             '<span></span>';
@@ -1193,7 +1119,6 @@ function createQuizCard(quiz) {
     }
 
     footer.appendChild(playButton);
-
     card.appendChild(top);
     card.appendChild(content);
     card.appendChild(footer);
@@ -1202,11 +1127,8 @@ function createQuizCard(quiz) {
 }
 
 /* =========================== OPEN QUIZ =================== */
-
 function openQuiz(code) {
-    const cleanCode = String(
-        code || ""
-    ).trim();
+    const cleanCode = String(code || "").trim();
 
     if (!/^\d+$/.test(cleanCode)) {
         showToastMessage("Mã phiên không hợp lệ.");
@@ -1217,10 +1139,7 @@ function openQuiz(code) {
         "running/index.html?code=" +
         encodeURIComponent(cleanCode);
 
-    const newTab = window.open(
-        target,
-        "_blank"
-    );
+    const newTab = window.open(target, "_blank");
 
     if (!newTab) {
         showToastMessage(
@@ -1236,13 +1155,11 @@ function openQuiz(code) {
         // Không ảnh hưởng đến việc mở phiên Quiz.
     }
 }
-/* ========================== VIEW MODE ==================== */
 
+/* ========================== VIEW MODE ==================== */
 function loadSavedViewMode() {
     try {
-        return localStorage.getItem(
-            CONFIG.STORAGE_VIEW
-        ) === "list"
+        return localStorage.getItem(CONFIG.STORAGE_VIEW) === "list"
             ? "list"
             : "grid";
     } catch (error) {
@@ -1251,20 +1168,14 @@ function loadSavedViewMode() {
 }
 
 function setViewMode(mode) {
-    if (
-        mode !== "grid" &&
-        mode !== "list"
-    ) {
+    if (mode !== "grid" && mode !== "list") {
         return;
     }
 
     state.viewMode = mode;
 
     try {
-        localStorage.setItem(
-            CONFIG.STORAGE_VIEW,
-            mode
-        );
+        localStorage.setItem(CONFIG.STORAGE_VIEW, mode);
     } catch (error) {
         console.warn(
             "Không thể lưu chế độ xem:",
@@ -1301,7 +1212,6 @@ function applyViewMode() {
 }
 
 /* ============================ SEARCH ===================== */
-
 function clearSearch() {
     state.searchText = "";
 
@@ -1323,7 +1233,6 @@ function updateSearchButton() {
 }
 
 /* ============================ COUNT ====================== */
-
 function updateCount() {
     if (!elements.quizCount) {
         return;
@@ -1339,7 +1248,6 @@ function updateCount() {
 }
 
 /* ========================= EMPTY STATE =================== */
-
 function updateEmptyState() {
     if (!state.quizzes.length) {
         showEmpty(
@@ -1359,7 +1267,6 @@ function updateEmptyState() {
 }
 
 /* ============================ STATES ===================== */
-
 function showLoading() {
     if (elements.loadingState) {
         elements.loadingState.classList.remove("hidden");
@@ -1395,7 +1302,6 @@ function hideEmpty() {
 }
 
 /* ============================== ERROR =================== */
-
 function showError(message) {
     if (elements.errorMessage) {
         elements.errorMessage.textContent =
@@ -1427,7 +1333,6 @@ function showDeviceIdInError() {
 
     if (!deviceIdLine) {
         deviceIdLine = document.createElement("div");
-
         deviceIdLine.id = "deviceIdErrorLine";
 
         Object.assign(deviceIdLine.style, {
@@ -1478,7 +1383,6 @@ function hideError() {
 }
 
 /* ======================= ERROR MESSAGE =================== */
-
 function getErrorMessage(error) {
     if (error?.name === "AbortError") {
         return "API không phản hồi. Vui lòng thử lại.";
@@ -1508,7 +1412,6 @@ function getErrorMessage(error) {
 }
 
 /* ======================== REFRESH BUTTON ================ */
-
 function setRefreshLoading(loading) {
     if (elements.refreshButton) {
         elements.refreshButton.disabled = loading;
@@ -1527,7 +1430,6 @@ function setRefreshLoading(loading) {
 }
 
 /* ============================== TOAST ==================== */
-
 let toastTimer = null;
 
 function showToastMessage(message) {
@@ -1539,7 +1441,6 @@ function showToastMessage(message) {
     }
 
     elements.toastMessage.textContent = message;
-
     elements.toast.classList.add("show");
 
     clearTimeout(toastTimer);
@@ -1550,7 +1451,6 @@ function showToastMessage(message) {
 }
 
 /* ============================ KEYBOARD ================== */
-
 function handleKeyboard(event) {
     if (
         (event.ctrlKey || event.metaKey) &&
